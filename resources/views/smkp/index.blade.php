@@ -114,12 +114,10 @@
                         @foreach($breadcrumbs as $crumb)
                             <li class="breadcrumb-item {{ $loop->last ? 'active text-dark fw-bold' : '' }}">
                                 @if(!$loop->last)
-                                    {{-- UPDATE: Menampilkan Kode + Nama meskipun bukan folder aktif --}}
                                     <a href="{{ route('smkp.index', $crumb->id) }}" class="text-decoration-none text-danger">
                                         {{ $crumb->code }} {{ $crumb->name }}
                                     </a>
                                 @else
-                                    {{-- Folder Aktif --}}
                                     {{ $crumb->code }} {{ $crumb->name }}
                                 @endif
                             </li>
@@ -130,7 +128,7 @@
         </div>
     </div>
 
-    {{-- UPDATE: ALERT DISMISSIBLE (Bisa ditutup tanpa refresh) --}}
+    {{-- ALERT DISMISSIBLE --}}
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show border-0 border-start border-5 border-success shadow-sm mb-4" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
@@ -192,9 +190,7 @@
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end custom-dropdown-menu">
-                                <li>
-                                    <h6 class="dropdown-header small text-uppercase text-muted">Aksi Folder</h6>
-                                </li>
+                                <li><h6 class="dropdown-header small text-uppercase text-muted">Aksi Folder</h6></li>
                                 <li>
                                     <button class="dropdown-item" 
                                             onclick="openEditModal('{{ $folder->id }}', '{{ $folder->code }}', '{{ $folder->name }}')">
@@ -203,7 +199,6 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    {{-- UPDATE: Menggunakan Modal Konfirmasi Hapus --}}
                                     <button type="button" class="dropdown-item text-danger" 
                                             onclick="openDeleteModal('{{ route('smkp.delete_folder', $folder->id) }}', '{{ $folder->name }}', 'Folder')">
                                         <i class="bi bi-trash-fill me-2"></i> Hapus Folder
@@ -240,7 +235,20 @@
                                     'xls', 'xlsx' => 'bi-file-earmark-excel-fill icon-excel',
                                     default => 'bi-file-earmark-text-fill text-secondary'
                                 };
+
+                                // --- LOGIC UNTUK TOMBOL "LIHAT" ---
+                                // Membuat URL File yang bisa diakses publik
+                                $publicUrl = asset('storage/' . $file->file_path);
+                                
+                                // Default Viewer URL (Browser bawaan)
+                                $viewerUrl = $publicUrl;
+
+                                // Jika PDF, DOC, DOCX, XLS, XLSX -> Gunakan Google Viewer
+                                if (in_array($ext, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'])) {
+                                    $viewerUrl = 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
+                                }
                             @endphp
+                            
                             <i class="bi {{ $iconClass }} fs-2 me-3"></i>
                             <div>
                                 <h6 class="mb-1 fw-bold text-dark">{{ $file->name }}</h6>
@@ -250,11 +258,19 @@
                             </div>
                         </div>
                         
-                        {{-- UPDATE: Tombol Download & Hapus File berdampingan --}}
+                        {{-- GROUP TOMBOL AKSI --}}
                         <div class="d-flex gap-2 ms-auto">
+                            {{-- Tombol LIHAT (BARU) --}}
+                            <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-eye me-1"></i> Lihat
+                            </a>
+
+                            {{-- Tombol UNDUH --}}
                             <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
                                 <i class="bi bi-download me-1"></i> Unduh
                             </a>
+
+                            {{-- Tombol HAPUS --}}
                             <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
                                     onclick="openDeleteModal('{{ route('smkp.delete_file', $file->id) }}', '{{ $file->name }}', 'Dokumen')">
                                 <i class="bi bi-trash me-1"></i> Hapus
@@ -362,7 +378,7 @@
         </div>
     </div>
 
-    {{-- MODAL KONFIRMASI HAPUS (BARU) --}}
+    {{-- MODAL KONFIRMASI HAPUS --}}
     <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <form id="deleteForm" action="" method="POST" class="w-100">
@@ -389,7 +405,6 @@
     </div>
 
     <script>
-        // JS untuk Modal Edit
         function openEditModal(id, code, name) {
             let form = document.getElementById('editFolderForm');
             let baseUrl = "{{ route('smkp.update_folder', 'placeholder_id') }}";
@@ -402,7 +417,6 @@
             myModal.show();
         }
 
-        // JS untuk Modal Hapus (Folder & File)
         function openDeleteModal(url, name, type) {
             let form = document.getElementById('deleteForm');
             form.action = url;
@@ -414,7 +428,6 @@
             myModal.show();
         }
 
-        // JS FIX: Stacking Context Dropdown
         document.addEventListener('DOMContentLoaded', function () {
             var dropdowns = document.querySelectorAll('.dropdown');
             dropdowns.forEach(function (dropdown) {
