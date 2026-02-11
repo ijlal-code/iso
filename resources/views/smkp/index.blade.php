@@ -1,236 +1,155 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Data SMKP</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+@extends('layouts.app')
+
+@section('content')
+
     <style>
-        :root {
-            --bs-primary: #000000; /* Hitam Pekat */
-            --bs-danger: #d60000;  /* Merah Menyala */
+        /* Custom Animation untuk Folder */
+        .folder-card-hover {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid rgba(0,0,0,0.05);
         }
-        
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-
-        /* Navbar Styling */
-        .navbar { 
-            background: linear-gradient(135deg, #000000 0%, #1c1c1c 100%); 
-            border-bottom: 4px solid var(--bs-danger);
+        .folder-card-hover:hover {
+            transform: translateY(-5px); /* Naik sedikit */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06) !important; /* Bayangan soft */
+            border-color: #ffc107 !important; /* Border jadi kuning emas saat di-hover */
         }
-
-        /* Folder Card Styling */
-        .folder-card { 
-            transition: all 0.25s ease; 
-            cursor: pointer; 
-            border: 1px solid #e2e2e2;
-            background: white;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* Aksen Merah Kecil di Kiri Folder */
-        .folder-card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: #000;
-            transition: background-color 0.2s;
-        }
-
-        .folder-card:hover { 
-            transform: translateY(-5px); 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            border-color: var(--bs-danger);
-        }
-
-        .folder-card:hover::before {
-            background-color: var(--bs-danger);
-        }
-
-        /* Functional Icons Colors */
-        .folder-icon { font-size: 2.5rem; color: #ffc107; text-shadow: 0 2px 2px rgba(0,0,0,0.1); } /* Kuning Folder */
-        .icon-pdf { color: #dc3545; }
-        .icon-word { color: #0d6efd; }
-        .icon-excel { color: #198754; }
-        .icon-default { color: #6c757d; }
-
-        /* Breadcrumb Styling */
-        .breadcrumb-item a { text-decoration: none; color: var(--bs-danger); font-weight: 500; }
-        .breadcrumb-item a:hover { text-decoration: underline; }
-        .breadcrumb-item.active { color: #000; font-weight: 700; }
-
-        /* Buttons */
-        .btn-black { background-color: #000; color: #fff; border: 1px solid #000; }
-        .btn-black:hover { background-color: #333; color: #fff; border-color: #333; }
-        
-        .btn-red { background-color: var(--bs-danger); color: #fff; border: none; }
-        .btn-red:hover { background-color: #b00000; color: #fff; }
-
-        .btn-outline-back { border: 1px solid #ced4da; color: #495057; background: white; }
-        .btn-outline-back:hover { background-color: #e9ecef; color: #000; }
-
-        /* Mobile Adjustments */
-        @media (max-width: 576px) {
-            .folder-icon { font-size: 2rem; }
-            .btn-responsive { width: 100%; margin-bottom: 0.5rem; }
+        .folder-card-hover:hover .icon-folder {
+            transform: scale(1.1); /* Ikon membesar sedikit */
+            transition: transform 0.3s ease;
         }
     </style>
-</head>
-<body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-4 sticky-top">
-        <div class="container">
-            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{{ route('smkp.index') }}">
-                <i class="bi bi-shield-lock-fill text-danger fs-4"></i> 
-                <div>
-                    SMKP <span class="text-danger">MINERBA</span>
-                </div>
-            </a>
+    <div class="card shadow-sm border-0 mb-4 rounded-3">
+        <div class="card-body p-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb m-0 align-items-center">
+                    <li class="breadcrumb-item">
+                        <a href="{{ route('smkp.index') }}" class="text-decoration-none text-danger fw-bold">
+                            <i class="bi bi-house-door-fill"></i> Home
+                        </a>
+                    </li>
+                    @if(isset($breadcrumbs))
+                        @foreach($breadcrumbs as $crumb)
+                            <li class="breadcrumb-item {{ $loop->last ? 'active text-dark fw-bold' : '' }}">
+                                @if(!$loop->last)
+                                    <a href="{{ route('smkp.index', $crumb->id) }}" class="text-decoration-none text-danger">
+                                        {{ $crumb->code }}
+                                    </a>
+                                @else
+                                    {{ $crumb->code }} {{ Str::limit($crumb->name, 40) }}
+                                @endif
+                            </li>
+                        @endforeach
+                    @endif
+                </ol>
+            </nav>
         </div>
-    </nav>
+    </div>
 
-    <div class="container pb-5">
+    @if(session('success'))
+        <div class="alert alert-success border-0 border-start border-5 border-success shadow-sm mb-4">
+            <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
+        </div>
+    @endif
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
         
-        <div class="card shadow-sm border-0 mb-4 rounded-3">
-            <div class="card-body">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb m-0 align-items-center">
-                        <li class="breadcrumb-item">
-                            <a href="{{ route('smkp.index') }}"><i class="bi bi-house-door-fill"></i> Home</a>
-                        </li>
-                        @if(isset($breadcrumbs))
-                            @foreach($breadcrumbs as $crumb)
-                                <li class="breadcrumb-item {{ $loop->last ? 'active' : '' }}">
-                                    @if(!$loop->last)
-                                        <a href="{{ route('smkp.index', $crumb->id) }}">
-                                            {{ $crumb->code }} {{ Str::limit($crumb->name, 20) }}
-                                        </a>
-                                    @else
-                                        {{ $crumb->code }} {{ $crumb->name }}
-                                    @endif
-                                </li>
-                            @endforeach
-                        @endif
-                    </ol>
-                </nav>
-            </div>
+        <div>
+            @if($currentFolder)
+                @php
+                    $backLink = $currentFolder->parent_id ? route('smkp.index', $currentFolder->parent_id) : route('smkp.index');
+                @endphp
+                <a href="{{ $backLink }}" class="btn btn-light border shadow-sm px-4">
+                    <i class="bi bi-arrow-left me-1"></i> Kembali
+                </a>
+            @endif
         </div>
 
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show border-0 border-start border-5 border-success shadow-sm" role="alert">
-                <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
+        <div class="d-flex gap-2">
+            <button class="btn btn-success shadow-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+                <i class="bi bi-folder-plus me-1"></i> Tambah Folder
+            </button>
 
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-            
-            <div>
-                @if($currentFolder)
-                    @php
-                        // Logika Link Kembali: Jika punya parent -> ke parent, jika tidak -> ke root
-                        $backLink = $currentFolder->parent_id ? route('smkp.index', $currentFolder->parent_id) : route('smkp.index');
-                    @endphp
-                    <a href="{{ $backLink }}" class="btn btn-outline-back btn-responsive shadow-sm">
-                        <i class="bi bi-arrow-left"></i> Kembali
-                    </a>
-                @endif
-            </div>
-
-            <div class="d-flex flex-wrap gap-2 justify-content-end w-sm-100">
-                <button class="btn btn-black btn-responsive shadow-sm" data-bs-toggle="modal" data-bs-target="#createFolderModal">
-                    <i class="bi bi-folder-plus"></i> Folder Baru
+            @if($currentFolder)
+                <button class="btn btn-red shadow-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
+                    <i class="bi bi-cloud-upload me-1"></i> Upload File
                 </button>
-
-                @if($currentFolder)
-                    <button class="btn btn-red btn-responsive shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
-                        <i class="bi bi-cloud-upload"></i> Upload File
-                    </button>
-                @endif
-            </div>
+            @endif
         </div>
+    </div>
 
-        @if($folders->count() > 0)
-            <div class="d-flex align-items-center mb-3">
-                <i class="bi bi-folder2-open me-2 fs-5"></i>
-                <h6 class="text-dark fw-bold m-0 border-bottom border-dark pb-1">DAFTAR FOLDER</h6>
-            </div>
-            
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-5">
-                @foreach($folders as $folder)
-                <div class="col">
-                    <a href="{{ route('smkp.index', $folder->id) }}" class="text-decoration-none text-dark">
-                        <div class="card folder-card h-100">
-                            <div class="card-body d-flex align-items-center p-3">
-                                <i class="bi bi-folder-fill folder-icon me-3"></i>
-                                <div class="overflow-hidden">
-                                    <div class="fw-bold text-dark text-truncate">{{ $folder->code }}</div>
-                                    <div class="small text-secondary lh-sm" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        {{ $folder->name }}
-                                    </div>
+    @if($folders->count() > 0)
+        <div class="d-flex align-items-center mb-3">
+            <h6 class="text-black fw-bold m-0 border-bottom border-dark border-2 pb-1 pe-3">
+                <i class="bi bi-folder-fill text-warning me-2"></i> FOLDER
+            </h6>
+        </div>
+        
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-5">
+            @foreach($folders as $folder)
+            <div class="col">
+                <a href="{{ route('smkp.index', $folder->id) }}" class="text-decoration-none text-dark">
+                    <div class="card h-100 border-0 shadow-sm folder-card-hover">
+                        <div class="card-body d-flex align-items-center p-3 border rounded-2" style="border-left: 4px solid #000 !important;">
+                            <i class="bi bi-folder-fill icon-folder fs-1 me-3"></i>
+                            <div style="overflow: hidden;">
+                                <div class="fw-bold text-dark">{{ $folder->code }}</div>
+                                <div class="small text-secondary lh-sm text-truncate">
+                                    {{ $folder->name }}
                                 </div>
                             </div>
                         </div>
-                    </a>
-                </div>
-                @endforeach
+                    </div>
+                </a>
             </div>
-        @endif
+            @endforeach
+        </div>
+    @endif
 
-        @if($currentFolder)
-            @if($files->count() > 0)
-                <div class="d-flex align-items-center mb-3">
-                    <i class="bi bi-file-earmark-text me-2 fs-5 text-danger"></i>
-                    <h6 class="text-danger fw-bold m-0 border-bottom border-danger pb-1">FILE DOKUMEN</h6>
-                </div>
+    @if($currentFolder)
+        @if($files->count() > 0)
+            <div class="d-flex align-items-center mb-3">
+                <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
+                    <i class="bi bi-file-earmark-text-fill me-2"></i> DOKUMEN ARSIP
+                </h6>
+            </div>
 
-                <div class="card shadow-sm border-0 rounded-2 overflow-hidden">
-                    <div class="list-group list-group-flush">
-                        @foreach($files as $file)
-                            <div class="list-group-item list-group-item-action d-flex flex-wrap justify-content-between align-items-center p-3 gap-3">
-                                <div class="d-flex align-items-center overflow-hidden">
-                                    @php
-                                        $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
-                                        $iconClass = match($ext) {
-                                            'pdf' => 'bi-file-earmark-pdf-fill icon-pdf',
-                                            'doc', 'docx' => 'bi-file-earmark-word-fill icon-word',
-                                            'xls', 'xlsx', 'csv' => 'bi-file-earmark-excel-fill icon-excel',
-                                            'ppt', 'pptx' => 'bi-file-earmark-slides-fill text-warning',
-                                            'jpg', 'jpeg', 'png' => 'bi-file-earmark-image-fill text-info',
-                                            default => 'bi-file-earmark-text-fill icon-default'
-                                        };
-                                    @endphp
-                                    <i class="bi {{ $iconClass }} fs-2 me-3"></i>
-                                    <div style="min-width: 0;">
-                                        <h6 class="mb-1 fw-bold text-truncate">{{ $file->name }}</h6>
-                                        <div class="small text-muted d-flex align-items-center gap-2">
-                                            <span class="badge bg-light text-dark border">{{ strtoupper($ext) }}</span>
-                                            <span><i class="bi bi-clock"></i> {{ $file->created_at->format('d M Y') }}</span>
-                                        </div>
+            <div class="card shadow-sm border-0 rounded-2">
+                <div class="list-group list-group-flush">
+                    @foreach($files as $file)
+                        <div class="list-group-item list-group-item-action d-flex flex-wrap justify-content-between align-items-center p-3 gap-3">
+                            <div class="d-flex align-items-center overflow-hidden">
+                                @php
+                                    $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
+                                    $iconClass = match($ext) {
+                                        'pdf' => 'bi-file-earmark-pdf-fill icon-pdf',
+                                        'doc', 'docx' => 'bi-file-earmark-word-fill icon-word',
+                                        'xls', 'xlsx' => 'bi-file-earmark-excel-fill icon-excel',
+                                        default => 'bi-file-earmark-text-fill text-secondary'
+                                    };
+                                @endphp
+                                <i class="bi {{ $iconClass }} fs-2 me-3"></i>
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-dark">{{ $file->name }}</h6>
+                                    <div class="small text-muted">
+                                        {{ strtoupper($ext) }} &bull; {{ $file->created_at->format('d M Y') }}
                                     </div>
                                 </div>
-                                <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-4 ms-auto">
-                                    <i class="bi bi-download"></i> <span class="d-none d-sm-inline">Unduh</span>
-                                </a>
                             </div>
-                        @endforeach
-                    </div>
+                            <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-4 ms-auto">
+                                <i class="bi bi-download"></i> Unduh
+                            </a>
+                        </div>
+                    @endforeach
                 </div>
-            @elseif($folders->count() == 0)
-                <div class="text-center py-5 text-muted bg-white rounded shadow-sm border border-dashed">
-                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
-                    <p class="mb-0">Folder ini belum memiliki sub-folder atau dokumen.</p>
-                </div>
-            @endif
+            </div>
+        @elseif($folders->count() == 0)
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted mb-3 d-block"></i>
+                <span class="text-muted">Folder ini kosong.</span>
+            </div>
         @endif
-
-    </div>
+    @endif
 
     <div class="modal fade" id="createFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -238,28 +157,22 @@
                 @csrf
                 <div class="modal-content rounded-3 border-0 shadow">
                     <div class="modal-header bg-black text-white">
-                        <h5 class="modal-title fw-bold"><i class="bi bi-folder-plus"></i> Buat Folder Baru</h5>
+                        <h5 class="modal-title fw-bold">Buat Folder Baru</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-4">
                         <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">KODE FOLDER</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" name="code" class="form-control" placeholder="Misal: I.1.2">
-                            </div>
+                            <label class="form-label fw-bold small">KODE</label>
+                            <input type="text" name="code" class="form-control" placeholder="Contoh: I.1">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">NAMA FOLDER / BAB</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light"><i class="bi bi-card-text"></i></span>
-                                <input type="text" name="name" class="form-control" placeholder="Misal: Manajemen Risiko" required>
-                            </div>
+                            <label class="form-label fw-bold small">NAMA FOLDER</label>
+                            <input type="text" name="name" class="form-control" required placeholder="Nama Bab / Sub-bab">
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-black px-4">Simpan</button>
+                        <button type="submit" class="btn btn-success px-4">Simpan</button>
                     </div>
                 </div>
             </form>
@@ -273,21 +186,20 @@
                 @csrf
                 <div class="modal-content rounded-3 border-0 shadow">
                     <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title fw-bold"><i class="bi bi-cloud-upload"></i> Upload Dokumen</h5>
+                        <h5 class="modal-title fw-bold">Upload Dokumen</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-4">
-                        <div class="alert alert-light border-start border-danger border-4 small text-muted mb-3">
-                            <i class="bi bi-info-circle me-1"></i> File akan disimpan di: <strong>{{ $currentFolder->name }}</strong>
+                        <div class="alert alert-light border-start border-danger border-4 small mb-3">
+                            Upload ke: <strong>{{ $currentFolder->code }} - {{ $currentFolder->name }}</strong>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">NAMA DOKUMEN</label>
-                            <input type="text" name="name" class="form-control" placeholder="Nama yang akan tampil di daftar..." required>
+                            <label class="form-label fw-bold small">NAMA DOKUMEN</label>
+                            <input type="text" name="name" class="form-control" required placeholder="Nama file yang akan tampil...">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">PILIH FILE</label>
+                            <label class="form-label fw-bold small">FILE</label>
                             <input type="file" name="file" class="form-control" required>
-                            <div class="form-text small">Format: PDF, Word, Excel (Maks. 50MB)</div>
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
@@ -300,6 +212,4 @@
     </div>
     @endif
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+@endsection
