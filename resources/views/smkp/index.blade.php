@@ -3,23 +3,105 @@
 @section('content')
 
     <style>
-        /* Animasi Folder */
-        .folder-card-hover {
+        /* 1. ANIMASI FOLDER CARD */
+        .folder-card-wrapper {
+            position: relative;
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border-radius: 0.5rem;
+            background: white;
             border: 1px solid rgba(0,0,0,0.08);
-            background: #fff;
+            z-index: 1; /* Layer Dasar */
         }
-        .folder-card-hover:hover {
+
+        /* Hover Effect: Naik & Glow Emas */
+        .folder-card-wrapper:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
-            border-color: #ffc107 !important; /* Border Kuning Emas */
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #ffc107;
+            z-index: 50; /* Layer saat di-hover (Lebih tinggi dari dasar) */
         }
-        .folder-card-hover:hover .icon-folder {
-            transform: scale(1.1);
-            transition: transform 0.3s ease;
+
+        /* PERBAIKAN UTAMA: Class ini ditambahkan via JS saat dropdown terbuka */
+        .folder-card-wrapper.is-active-dropdown {
+            z-index: 100 !important; /* HARUS lebih tinggi dari hover folder lain */
+            border-color: #ffc107; /* Tetap kuning agar terlihat aktif */
         }
-        /* Dropdown Styling */
-        .dropdown-item:active { background-color: #000; }
+
+        /* Icon Animation */
+        .folder-card-wrapper:hover .icon-folder,
+        .folder-card-wrapper.is-active-dropdown .icon-folder {
+            transform: scale(1.1) rotate(-3deg);
+            filter: drop-shadow(0 4px 3px rgba(0,0,0,0.1));
+            transition: all 0.3s ease;
+        }
+
+        /* Link Area */
+        .folder-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            padding: 1.25rem 1rem;
+            padding-right: 3.5rem;
+            border-radius: 0.5rem; 
+        }
+
+        /* 2. TOMBOL OPSI (TITIK TIGA) */
+        .folder-options {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 101;
+        }
+
+        .btn-options {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border-radius: 50%;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-options:hover, .dropdown.show .btn-options {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* 3. DROPDOWN MENU */
+        .custom-dropdown-menu {
+            border: 0;
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            min-width: 200px;
+            /* Z-Index sangat tinggi, tapi tetap butuh bantuan JS di parent */
+            z-index: 1000; 
+        }
+        
+        .custom-dropdown-menu .dropdown-item {
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-weight: 500;
+            color: #333;
+            transition: background 0.2s;
+        }
+
+        .custom-dropdown-menu .dropdown-item:hover {
+            background-color: #f0f0f0;
+            color: #000;
+        }
+
+        .custom-dropdown-menu .dropdown-item.text-danger:hover {
+            background-color: #fff5f5;
+            color: #dc3545;
+        }
     </style>
 
     <div class="card shadow-sm border-0 mb-4 rounded-3">
@@ -69,41 +151,13 @@
         </div>
 
         <div class="d-flex gap-2">
-            
-            <button class="btn btn-danger shadow-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
-                <i class="bi bi-cloud-upload me-1"></i> Upload File
+            <button class="btn btn-danger shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
+                <i class="bi bi-cloud-upload me-2"></i> Upload File
             </button>
 
-            <div class="dropdown">
-                <button class="btn btn-black shadow-sm dropdown-toggle fw-bold px-3" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-gear-fill me-1"></i> Menu Folder
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                    <li>
-                        <button class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#createFolderModal">
-                            <i class="bi bi-folder-plus text-success me-2"></i> Tambah Folder
-                        </button>
-                    </li>
-
-                    @if($currentFolder)
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <button class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#editFolderModal">
-                                <i class="bi bi-pencil-square text-warning me-2"></i> Edit Folder Ini
-                            </button>
-                        </li>
-                        <li>
-                            <form action="{{ route('smkp.delete_folder', $currentFolder->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus folder ini beserta isinya?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="dropdown-item py-2 text-danger">
-                                    <i class="bi bi-trash-fill me-2"></i> Hapus Folder Ini
-                                </button>
-                            </form>
-                        </li>
-                    @endif
-                </ul>
-            </div>
+            <button class="btn btn-success shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+                <i class="bi bi-folder-plus me-2"></i> Tambah Folder
+            </button>
         </div>
     </div>
 
@@ -117,9 +171,10 @@
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-5">
             @foreach($folders as $folder)
             <div class="col">
-                <a href="{{ route('smkp.index', $folder->id) }}" class="text-decoration-none text-dark">
-                    <div class="card h-100 border-0 shadow-sm folder-card-hover">
-                        <div class="card-body d-flex align-items-center p-3 border rounded-2" style="border-left: 4px solid #000 !important;">
+                <div class="folder-card-wrapper h-100">
+                    
+                    <a href="{{ route('smkp.index', $folder->id) }}" class="folder-link">
+                        <div class="d-flex align-items-center" style="border-left: 4px solid #000; padding-left: 12px;">
                             <i class="bi bi-folder-fill icon-folder fs-1 me-3"></i>
                             <div style="overflow: hidden;">
                                 <div class="fw-bold text-dark">{{ $folder->code }}</div>
@@ -128,8 +183,38 @@
                                 </div>
                             </div>
                         </div>
+                    </a>
+
+                    <div class="folder-options">
+                        <div class="dropdown">
+                            <button class="btn btn-options shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end custom-dropdown-menu">
+                                <li>
+                                    <h6 class="dropdown-header small text-uppercase text-muted">Aksi Folder</h6>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" 
+                                            onclick="openEditModal('{{ $folder->id }}', '{{ $folder->code }}', '{{ $folder->name }}')">
+                                        <i class="bi bi-pencil-square text-warning me-2"></i> Edit Nama
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{{ route('smkp.delete_folder', $folder->id) }}" method="POST" onsubmit="return confirm('Hapus folder {{ $folder->name }} beserta isinya?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash-fill me-2"></i> Hapus Folder
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
-                </a>
+
+                </div>
             </div>
             @endforeach
         </div>
@@ -199,7 +284,7 @@
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-black px-4">Simpan</button>
+                        <button type="submit" class="btn btn-success px-4">Simpan</button>
                     </div>
                 </div>
             </form>
@@ -237,35 +322,68 @@
         </div>
     </div>
 
-    @if($currentFolder)
     <div class="modal fade" id="editFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="{{ route('smkp.update_folder', $currentFolder->id) }}" method="POST" class="w-100">
+            <form id="editFolderForm" action="" method="POST" class="w-100">
                 @csrf
                 @method('PUT')
                 <div class="modal-content rounded-3 border-0 shadow">
                     <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title fw-bold">Edit Folder Ini</h5>
+                        <h5 class="modal-title fw-bold">Edit Folder</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-4">
                         <div class="mb-3">
                             <label class="form-label fw-bold small">KODE</label>
-                            <input type="text" name="code" class="form-control" value="{{ $currentFolder->code }}">
+                            <input type="text" name="code" id="editFolderCode" class="form-control">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold small">NAMA FOLDER</label>
-                            <input type="text" name="name" class="form-control" required value="{{ $currentFolder->name }}">
+                            <input type="text" name="name" id="editFolderName" class="form-control" required>
                         </div>
                     </div>
                     <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-warning px-4">Update Folder</button>
+                        <button type="button" class="btn btn-link btn-black text-white text-secondary text-decoration-none" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning px-4">Update</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-    @endif
+
+    <script>
+        // JS untuk Modal Edit
+        function openEditModal(id, code, name) {
+            let form = document.getElementById('editFolderForm');
+            let baseUrl = "{{ route('smkp.update_folder', 'placeholder_id') }}";
+            form.action = baseUrl.replace('placeholder_id', id);
+
+            document.getElementById('editFolderCode').value = code;
+            document.getElementById('editFolderName').value = name;
+
+            var myModal = new bootstrap.Modal(document.getElementById('editFolderModal'));
+            myModal.show();
+        }
+
+        // JS FIX: Stacking Context Dropdown
+        // Saat dropdown dibuka, kita beri class khusus ke parent cardnya 
+        // agar z-indexnya menjadi paling tinggi (100) mengalahkan hover card lain (50).
+        document.addEventListener('DOMContentLoaded', function () {
+            var dropdowns = document.querySelectorAll('.dropdown');
+            dropdowns.forEach(function (dropdown) {
+                dropdown.addEventListener('show.bs.dropdown', function () {
+                    // Cari parent folder-card-wrapper dan tambah class
+                    var card = this.closest('.folder-card-wrapper');
+                    if (card) card.classList.add('is-active-dropdown');
+                });
+
+                dropdown.addEventListener('hide.bs.dropdown', function () {
+                    // Hapus class saat dropdown tertutup
+                    var card = this.closest('.folder-card-wrapper');
+                    if (card) card.classList.remove('is-active-dropdown');
+                });
+            });
+        });
+    </script>
 
 @endsection
