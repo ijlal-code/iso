@@ -11,7 +11,6 @@ class SmkpController extends Controller
 {
     public function index($folderId = null)
     {
-        // Jika tidak ada ID, ambil folder root (yang parent_id nya null)
         if (!$folderId) {
             $folders = Folder::whereNull('parent_id')->get();
             $currentFolder = null;
@@ -19,10 +18,10 @@ class SmkpController extends Controller
             $breadcrumbs = [];
         } else {
             $currentFolder = Folder::with('children', 'files')->findOrFail($folderId);
-            $folders = $currentFolder->children; // Sub-folder
-            $files = $currentFolder->files;     // File di folder ini
+            $folders = $currentFolder->children; 
+            $files = $currentFolder->files;     
             
-            // Membuat navigasi remah roti (Breadcrumb)
+            // Breadcrumb logika
             $breadcrumbs = [];
             $temp = $currentFolder;
             while($temp) {
@@ -37,22 +36,38 @@ class SmkpController extends Controller
     public function upload(Request $request, $folderId)
     {
         $request->validate([
-            'file' => 'required|file|max:10240', // Max 10MB
-            'name' => 'required|string|max:255', // Nama custom dari user
+            'file' => 'required|file|max:51200', // Max 50MB
+            'name' => 'required|string|max:255', 
         ]);
 
         $file = $request->file('file');
-        // Simpan file dengan aman di storage/app/public/smkp_files
         $path = $file->store('public/smkp_files');
 
         FileUpload::create([
             'folder_id' => $folderId,
             'name' => $request->name,
-            'file_path' => str_replace('public/', '', $path), // Simpan path relatif
+            'file_path' => str_replace('public/', '', $path),
             'mime_type' => $file->getClientMimeType(),
         ]);
 
         return back()->with('success', 'File berhasil disimpan.');
+    }
+
+    // FUNGSI BARU: Membuat Folder
+    public function createFolder(Request $request, $parentId = null)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:50',
+        ]);
+
+        Folder::create([
+            'name' => $request->name,
+            'code' => $request->code,
+            'parent_id' => $parentId
+        ]);
+
+        return back()->with('success', 'Folder berhasil dibuat.');
     }
     
     public function download($id)
