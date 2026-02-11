@@ -10,24 +10,21 @@
             border-radius: 0.5rem;
             background: white;
             border: 1px solid rgba(0,0,0,0.08);
-            z-index: 1; /* Layer Dasar */
+            z-index: 1;
         }
 
-        /* Hover Effect: Naik & Glow Emas */
         .folder-card-wrapper:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             border-color: #ffc107;
-            z-index: 50; /* Layer saat di-hover (Lebih tinggi dari dasar) */
+            z-index: 50;
         }
 
-        /* PERBAIKAN UTAMA: Class ini ditambahkan via JS saat dropdown terbuka */
         .folder-card-wrapper.is-active-dropdown {
-            z-index: 100 !important; /* HARUS lebih tinggi dari hover folder lain */
-            border-color: #ffc107; /* Tetap kuning agar terlihat aktif */
+            z-index: 100 !important;
+            border-color: #ffc107;
         }
 
-        /* Icon Animation */
         .folder-card-wrapper:hover .icon-folder,
         .folder-card-wrapper.is-active-dropdown .icon-folder {
             transform: scale(1.1) rotate(-3deg);
@@ -81,7 +78,6 @@
             border-radius: 0.5rem;
             padding: 0.5rem;
             min-width: 200px;
-            /* Z-Index sangat tinggi, tapi tetap butuh bantuan JS di parent */
             z-index: 1000; 
         }
         
@@ -104,6 +100,7 @@
         }
     </style>
 
+    {{-- BREADCRUMB NAVIGATION --}}
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-3">
             <nav aria-label="breadcrumb">
@@ -117,11 +114,13 @@
                         @foreach($breadcrumbs as $crumb)
                             <li class="breadcrumb-item {{ $loop->last ? 'active text-dark fw-bold' : '' }}">
                                 @if(!$loop->last)
+                                    {{-- UPDATE: Menampilkan Kode + Nama meskipun bukan folder aktif --}}
                                     <a href="{{ route('smkp.index', $crumb->id) }}" class="text-decoration-none text-danger">
-                                        {{ $crumb->code }}
+                                        {{ $crumb->code }} {{ $crumb->name }}
                                     </a>
                                 @else
-                                    {{ $crumb->code }} {{ Str::limit($crumb->name, 40) }}
+                                    {{-- Folder Aktif --}}
+                                    {{ $crumb->code }} {{ $crumb->name }}
                                 @endif
                             </li>
                         @endforeach
@@ -131,14 +130,15 @@
         </div>
     </div>
 
+    {{-- UPDATE: ALERT DISMISSIBLE (Bisa ditutup tanpa refresh) --}}
     @if(session('success'))
-        <div class="alert alert-success border-0 border-start border-5 border-success shadow-sm mb-4">
+        <div class="alert alert-success alert-dismissible fade show border-0 border-start border-5 border-success shadow-sm mb-4" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
 
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-        
         <div>
             @if($currentFolder)
                 @php
@@ -161,6 +161,7 @@
         </div>
     </div>
 
+    {{-- FOLDER LIST --}}
     @if($folders->count() > 0)
         <div class="d-flex align-items-center mb-3">
             <h6 class="text-black fw-bold m-0 border-bottom border-dark border-2 pb-1 pe-3">
@@ -202,13 +203,11 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form action="{{ route('smkp.delete_folder', $folder->id) }}" method="POST" onsubmit="return confirm('Hapus folder {{ $folder->name }} beserta isinya?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="dropdown-item text-danger">
-                                            <i class="bi bi-trash-fill me-2"></i> Hapus Folder
-                                        </button>
-                                    </form>
+                                    {{-- UPDATE: Menggunakan Modal Konfirmasi Hapus --}}
+                                    <button type="button" class="dropdown-item text-danger" 
+                                            onclick="openDeleteModal('{{ route('smkp.delete_folder', $folder->id) }}', '{{ $folder->name }}', 'Folder')">
+                                        <i class="bi bi-trash-fill me-2"></i> Hapus Folder
+                                    </button>
                                 </li>
                             </ul>
                         </div>
@@ -220,6 +219,7 @@
         </div>
     @endif
 
+    {{-- FILE LIST --}}
     @if($files->count() > 0)
         <div class="d-flex align-items-center mb-3">
             <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
@@ -249,9 +249,17 @@
                                 </div>
                             </div>
                         </div>
-                        <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-4 ms-auto">
-                            <i class="bi bi-download"></i> Unduh
-                        </a>
+                        
+                        {{-- UPDATE: Tombol Download & Hapus File berdampingan --}}
+                        <div class="d-flex gap-2 ms-auto">
+                            <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                <i class="bi bi-download me-1"></i> Unduh
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                    onclick="openDeleteModal('{{ route('smkp.delete_file', $file->id) }}', '{{ $file->name }}', 'Dokumen')">
+                                <i class="bi bi-trash me-1"></i> Hapus
+                            </button>
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -263,6 +271,7 @@
         </div>
     @endif
 
+    {{-- MODAL CREATE FOLDER --}}
     <div class="modal fade" id="createFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form action="{{ route('smkp.create_folder', $currentFolder ? $currentFolder->id : null) }}" method="POST" class="w-100">
@@ -291,6 +300,7 @@
         </div>
     </div>
 
+    {{-- MODAL UPLOAD FILE --}}
     <div class="modal fade" id="uploadFileModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form action="{{ route('smkp.upload', $currentFolder ? $currentFolder->id : null) }}" method="POST" enctype="multipart/form-data" class="w-100">
@@ -322,6 +332,7 @@
         </div>
     </div>
 
+    {{-- MODAL EDIT FOLDER --}}
     <div class="modal fade" id="editFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form id="editFolderForm" action="" method="POST" class="w-100">
@@ -351,6 +362,32 @@
         </div>
     </div>
 
+    {{-- MODAL KONFIRMASI HAPUS (BARU) --}}
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <form id="deleteForm" action="" method="POST" class="w-100">
+                @csrf
+                @method('DELETE')
+                <div class="modal-content rounded-3 border-0 shadow">
+                    <div class="modal-body p-4 text-center">
+                        <div class="mb-3 text-danger">
+                            <i class="bi bi-exclamation-circle fs-1"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2">Hapus <span id="deleteType">Item</span>?</h5>
+                        <p class="text-muted small mb-4">
+                            "<span id="deleteName" class="fw-bold"></span>"<br>
+                            Tindakan ini tidak dapat dibatalkan.
+                        </p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-danger w-50">Ya, Hapus</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // JS untuk Modal Edit
         function openEditModal(id, code, name) {
@@ -365,20 +402,28 @@
             myModal.show();
         }
 
+        // JS untuk Modal Hapus (Folder & File)
+        function openDeleteModal(url, name, type) {
+            let form = document.getElementById('deleteForm');
+            form.action = url;
+            
+            document.getElementById('deleteName').innerText = name;
+            document.getElementById('deleteType').innerText = type;
+
+            var myModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            myModal.show();
+        }
+
         // JS FIX: Stacking Context Dropdown
-        // Saat dropdown dibuka, kita beri class khusus ke parent cardnya 
-        // agar z-indexnya menjadi paling tinggi (100) mengalahkan hover card lain (50).
         document.addEventListener('DOMContentLoaded', function () {
             var dropdowns = document.querySelectorAll('.dropdown');
             dropdowns.forEach(function (dropdown) {
                 dropdown.addEventListener('show.bs.dropdown', function () {
-                    // Cari parent folder-card-wrapper dan tambah class
                     var card = this.closest('.folder-card-wrapper');
                     if (card) card.classList.add('is-active-dropdown');
                 });
 
                 dropdown.addEventListener('hide.bs.dropdown', function () {
-                    // Hapus class saat dropdown tertutup
                     var card = this.closest('.folder-card-wrapper');
                     if (card) card.classList.remove('is-active-dropdown');
                 });

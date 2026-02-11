@@ -20,3 +20,6 @@ Route::delete('/smkp/folder/{id}', [SmkpController::class, 'deleteFolder'])->nam
 
 // Route Download
 Route::get('/smkp/file/{id}', [SmkpController::class, 'download'])->name('smkp.download');
+// Tambahkan baris ini di bagian paling bawah file routes/web.php
+// Route Delete File
+Route::delete('/smkp/file/{id}', [SmkpController::class, 'deleteFile'])->name('smkp.delete_file');

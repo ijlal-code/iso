@@ -109,4 +109,19 @@ class SmkpController extends Controller
         $file = FileUpload::findOrFail($id);
         return Storage::download('public/' . $file->file_path, $file->name . '.' . pathinfo($file->file_path, PATHINFO_EXTENSION));
     }
+
+    public function deleteFile($id)
+{
+    $file = FileUpload::findOrFail($id);
+
+    // Hapus fisik file dari storage jika ada
+    if (Storage::exists('public/' . $file->file_path)) {
+        Storage::delete('public/' . $file->file_path);
+    }
+
+    // Hapus data dari database
+    $file->delete();
+
+    return back()->with('success', 'Dokumen berhasil dihapus.');
+}
 }
