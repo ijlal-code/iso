@@ -33,6 +33,7 @@ class SmkpController extends Controller
         return view('smkp.index', compact('folders', 'files', 'currentFolder', 'breadcrumbs'));
     }
 
+    // Update: $folderId diambil dari route parameter
     public function upload(Request $request, $folderId)
     {
         $request->validate([
@@ -53,7 +54,6 @@ class SmkpController extends Controller
         return back()->with('success', 'File berhasil disimpan.');
     }
 
-    // FUNGSI BARU: Membuat Folder
     public function createFolder(Request $request, $parentId = null)
     {
         $request->validate([
