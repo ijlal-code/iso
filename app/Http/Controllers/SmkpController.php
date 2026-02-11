@@ -14,14 +14,13 @@ class SmkpController extends Controller
         if (!$folderId) {
             $folders = Folder::whereNull('parent_id')->get();
             $currentFolder = null;
-            $files = [];
+            $files = FileUpload::whereNull('folder_id')->get(); // Ambil file di root
             $breadcrumbs = [];
         } else {
             $currentFolder = Folder::with('children', 'files')->findOrFail($folderId);
             $folders = $currentFolder->children; 
             $files = $currentFolder->files;     
             
-            // Breadcrumb logika
             $breadcrumbs = [];
             $temp = $currentFolder;
             while($temp) {
@@ -33,11 +32,11 @@ class SmkpController extends Controller
         return view('smkp.index', compact('folders', 'files', 'currentFolder', 'breadcrumbs'));
     }
 
-    // Update: $folderId diambil dari route parameter
-    public function upload(Request $request, $folderId)
+    // Update parameter agar folderId opsional
+    public function upload(Request $request, $folderId = null)
     {
         $request->validate([
-            'file' => 'required|file|max:51200', // Max 50MB
+            'file' => 'required|file|max:51200', 
             'name' => 'required|string|max:255', 
         ]);
 
@@ -45,7 +44,7 @@ class SmkpController extends Controller
         $path = $file->store('public/smkp_files');
 
         FileUpload::create([
-            'folder_id' => $folderId,
+            'folder_id' => $folderId, // Bisa null jika di root
             'name' => $request->name,
             'file_path' => str_replace('public/', '', $path),
             'mime_type' => $file->getClientMimeType(),
@@ -68,6 +67,41 @@ class SmkpController extends Controller
         ]);
 
         return back()->with('success', 'Folder berhasil dibuat.');
+    }
+
+    // FUNGSI BARU: Edit Folder
+    public function updateFolder(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:50',
+        ]);
+
+        $folder = Folder::findOrFail($id);
+        $folder->update([
+            'name' => $request->name,
+            'code' => $request->code
+        ]);
+
+        return back()->with('success', 'Folder berhasil diperbarui.');
+    }
+
+    // FUNGSI BARU: Hapus Folder
+    public function deleteFolder($id)
+    {
+        $folder = Folder::findOrFail($id);
+        $parentId = $folder->parent_id;
+        
+        // Hapus folder (file di dalamnya otomatis terhapus jika onCascade delete di migration aktif)
+        // Jika tidak, Anda perlu loop delete file secara manual.
+        // Asumsi migration Anda sudah onDelete('cascade').
+        $folder->delete();
+
+        // Redirect ke parent folder atau ke home
+        if($parentId) {
+            return to_route('smkp.index', $parentId)->with('success', 'Folder berhasil dihapus.');
+        }
+        return to_route('smkp.index')->with('success', 'Folder berhasil dihapus.');
     }
     
     public function download($id)
