@@ -25,10 +25,9 @@
         .custom-dropdown-menu .dropdown-item:hover { background-color: #f0f0f0; color: #000; }
         .custom-dropdown-menu .dropdown-item.text-danger:hover { background-color: #fff5f5; color: #dc3545; }
         
-        /* Style Tambahan untuk Tabel Per Unit */
         .unit-header {
             background-color: #f8f9fa;
-            border-left: 5px solid #dc3545; /* Aksen Merah di kiri header */
+            border-left: 5px solid #dc3545; 
         }
     </style>
 
@@ -183,19 +182,12 @@
         <div class="row">
             @foreach($targetRoles as $roleName)
                 @php
-                    // Ambil Data User berdasarkan Role
-                    $unit = $units->firstWhere('role', $roleName);
-                    
-                    // Cek apakah ada file untuk user tersebut
-                    $userFile = null;
-                    $uploaderName = null;
-
-                    if ($unit) {
-                        $userFile = $files->where('user_id', $unit->id)->first();
-                        if ($userFile) {
-                            $uploaderName = $unit->name;
-                        }
-                    }
+                    // FILTER FILE BERDASARKAN ROLE USER
+                    // Kita ambil dari koleksi $files yang dikirim controller.
+                    // Jika ada user baru dengan role ini, filenya otomatis masuk sini.
+                    $roleFiles = $files->filter(function ($file) use ($roleName) {
+                        return $file->user && $file->user->role === $roleName;
+                    });
                 @endphp
 
                 <div class="col-12 mb-4">
@@ -204,6 +196,10 @@
                         <div class="card-header unit-header py-3 px-4">
                             <h6 class="fw-bold m-0 text-dark">
                                 <i class="bi bi-building me-2 text-secondary"></i> {{ $roleName }}
+                                {{-- Counter badge opsional --}}
+                                @if($roleFiles->count() > 0)
+                                    <span class="badge bg-danger rounded-pill ms-2">{{ $roleFiles->count() }} File</span>
+                                @endif
                             </h6>
                         </div>
 
@@ -212,64 +208,68 @@
                             <table class="table align-middle mb-0">
                                 <thead class="bg-white border-bottom">
                                     <tr class="small text-muted text-uppercase">
-                                        <th class="ps-4" style="width: 25%;">Nama Pengupload</th>
-                                        <th style="width: 35%;">Nama Dokumen</th>
+                                        <th class="ps-4" style="width: 5%;">No</th>
+                                        <th style="width: 25%;">Nama Pengupload</th>
+                                        <th style="width: 30%;">Nama Dokumen</th>
                                         <th class="text-center" style="width: 20%;">Tanggal Upload</th>
                                         <th class="text-center" style="width: 20%;">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @if($userFile)
-                                        <tr class="bg-white">
-                                            <td class="ps-4 fw-medium text-dark">
-                                                {{ $uploaderName }}
+                                    @forelse($roleFiles as $file)
+                                        @php
+                                            $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
+                                            $iconClass = match($ext) {
+                                                'pdf' => 'bi-file-earmark-pdf-fill text-danger',
+                                                'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
+                                                'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
+                                                'ppt', 'pptx' => 'bi-file-earmark-ppt-fill text-warning',
+                                                'jpg', 'jpeg', 'png' => 'bi-file-earmark-image-fill text-info',
+                                                default => 'bi-file-earmark-text-fill text-secondary'
+                                            };
+                                        @endphp
+                                        <tr class="bg-white border-bottom">
+                                            <td class="ps-4 fw-bold text-muted">{{ $loop->iteration }}</td>
+                                            <td class="fw-medium text-dark">
+                                                {{ $file->user->name ?? 'User Terhapus' }}
                                             </td>
                                             <td>
-                                                @php
-                                                    $ext = strtolower(pathinfo($userFile->file_path, PATHINFO_EXTENSION));
-                                                    $iconClass = match($ext) {
-                                                        'pdf' => 'bi-file-earmark-pdf-fill text-danger',
-                                                        'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
-                                                        'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
-                                                        default => 'bi-file-earmark-text-fill text-secondary'
-                                                    };
-                                                @endphp
                                                 <div class="d-flex align-items-center">
                                                     <i class="bi {{ $iconClass }} fs-5 me-2"></i>
-                                                    <span class="fw-semibold text-dark">{{ $userFile->name }}</span>
+                                                    <span class="fw-semibold text-dark">{{ $file->name }}</span>
                                                 </div>
                                             </td>
                                             <td class="text-center text-muted">
-                                                {{ $userFile->created_at->format('d/m/Y H:i') }}
+                                                {{ $file->created_at->format('d/m/Y') }}
                                             </td>
                                             <td class="text-center">
                                                 <div class="d-flex justify-content-center gap-1">
                                                     @php
-                                                        $publicUrl = asset('storage/' . $userFile->file_path);
-                                                        $viewerUrl = in_array($ext, ['pdf', 'jpg', 'png']) ? $publicUrl : 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
+                                                        $publicUrl = asset('storage/' . $file->file_path);
+                                                        $viewerUrl = in_array($ext, ['pdf', 'jpg', 'png', 'jpeg']) ? $publicUrl : 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
                                                     @endphp
                                                     
                                                     <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Lihat">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
-                                                    <a href="{{ route('smkp.download', $userFile->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
+                                                    <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
                                                         <i class="bi bi-download"></i>
                                                     </a>
-                                                    <button onclick="openDeleteModal('{{ route('smkp.delete_file', $userFile->id) }}', '{{ $userFile->name }}', 'Dokumen')" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                                    <button onclick="openDeleteModal('{{ route('smkp.delete_file', $file->id) }}', '{{ $file->name }}', 'Dokumen')" class="btn btn-sm btn-outline-danger" title="Hapus">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
-                                    @else
-                                        {{-- JIKA BELUM UPLOAD --}}
+                                    @empty
+                                        {{-- JIKA KOSONG --}}
                                         <tr class="bg-light">
-                                            <td colspan="4" class="text-center py-4 text-muted fst-italic">
+                                            <td colspan="5" class="text-center py-4 text-muted fst-italic">
                                                 <i class="bi bi-exclamation-circle me-1"></i>
                                                 Belum ada dokumen yang diupload oleh unit ini.
                                             </td>
                                         </tr>
-                                    @endif
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
