@@ -9,18 +9,19 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   // database/migrations/xxxx_create_file_uploads_table.php
-public function up(): void
-{
-    Schema::create('file_uploads', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('folder_id')->constrained()->onDelete('cascade');
-        $table->string('name');      // Nama yang diberikan user
-        $table->string('file_path'); // Lokasi file asli di server
-        $table->string('mime_type')->nullable();
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('file_uploads', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('folder_id')->constrained()->onDelete('cascade');
+            // Tambahkan user_id agar tahu siapa pemilik file
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); 
+            $table->string('name');
+            $table->string('file_path');
+            $table->string('mime_type')->nullable();
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

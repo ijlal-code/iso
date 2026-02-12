@@ -12,4 +12,10 @@ class FileUpload extends Model
     {
         return $this->belongsTo(Folder::class);
     }
+
+    // Relasi ke User
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

@@ -4,18 +4,60 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Folder;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class SmkpSeeder extends Seeder
 {
     public function run(): void
     {
-        // Kosongkan tabel dulu agar tidak duplikat jika dijalankan ulang
+        // 1. BERSIHKAN DATABASE
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         Folder::truncate();
+        User::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // Data Lengkap sesuai permintaan
+        // 2. BUAT AKUN PENGGUNA
+        // Daftar Role sesuai permintaan
+        $roles = [
+            'KTT',
+            'Pengelola Sistem',
+            'Audit Internal',
+            'Pengelola Risiko',
+            'Pengelola Legal',
+            'Pengelola K3 & Lingk.',
+            'Pengel. SDM & Diklat',
+            'Pengawas Operasional',
+            'Bag. K3 & KO Pertamb.',
+            'PJO',
+            'Pengawas Oper. PJO',
+            'Pengawas Teknik PJO',
+            'Bag. K3 & KO PJO',
+        ];
+
+        $unitCounter = 1;
+
+        foreach ($roles as $roleName) {
+            // Logika Penamaan:
+            // Jika role adalah 'Audit Internal', nama = 'Auditor'
+            // Selain itu, nama = 'Unit X' (X nambah terus)
+            
+            if ($roleName === 'auditor') {
+                $name = 'auditor';
+            } else {
+                $name = 'Unit ' . $unitCounter;
+                $unitCounter++;
+            }
+
+            User::create([
+                'name' => $name,          // Nama: Unit 1, Unit 2... atau Auditor
+                'role' => $roleName,      // Role: KTT, Pengelola Sistem...
+                'password' => Hash::make('password'),
+            ]);
+        }
+
+        // 3. BUAT STRUKTUR FOLDER
         $structure = [
             [
                 'code' => 'I', 'name' => 'KEBIJAKAN',

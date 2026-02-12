@@ -27,6 +27,7 @@ class User extends Authenticatable
         'Pengawas Oper. PJO',
         'Pengawas Teknik PJO',
         'Bag. K3 & KO PJO',
+        'auditor'
     ];
 
     protected $fillable = [
