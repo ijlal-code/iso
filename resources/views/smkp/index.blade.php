@@ -3,7 +3,7 @@
 @section('content')
 
     <style>
-        /* 1. STYLE TAMPILAN LIST (FOLDER & FILE) */
+        /* 1. STYLE TAMPILAN LIST (FOLDER) */
         .list-group-item {
             transition: all 0.2s ease-in-out;
             border-left: 4px solid transparent;
@@ -16,16 +16,11 @@
             z-index: 10;
         }
 
-        .file-item:hover {
-            border-left-color: #dc3545; 
-        }
-
-        .folder-icon, .file-icon {
+        .folder-icon {
             transition: transform 0.2s;
         }
 
-        .list-group-item:hover .folder-icon, 
-        .list-group-item:hover .file-icon {
+        .list-group-item:hover .folder-icon {
             transform: scale(1.15);
         }
 
@@ -135,12 +130,9 @@
                 @foreach($folders as $folder)
                 <div class="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between">
                     
-                    {{-- LINK FOLDER (KLIK AREA) --}}
+                    {{-- LINK FOLDER --}}
                     <a href="{{ route('smkp.index', $folder->id) }}" class="d-flex align-items-center text-decoration-none text-dark flex-grow-1">
-                        {{-- Icon --}}
                         <i class="bi bi-folder-fill text-warning fs-2 me-3 folder-icon"></i>
-                        
-                        {{-- Nama & Info --}}
                         <div>
                             <div class="fw-bold fs-6 text-break">
                                 <span class="badge bg-light text-dark border border-secondary me-1">{{ $folder->code }}</span>
@@ -183,87 +175,191 @@
         </div>
     @endif
 
-    {{-- FILE LIST --}}
-    {{-- List ini sudah difilter dari Controller. Jika Auditor: tampil semua. Jika Role lain: tampil milik sendiri. --}}
-    @if($files->count() > 0)
+
+    {{-- ========================================================= --}}
+    {{-- TAMPILAN MONITORING / FILE LIST BERDASARKAN ROLE --}}
+    {{-- ========================================================= --}}
+
+    {{-- LOGIKA: Tampilkan Tabel Monitoring HANYA jika:
+         1. User adalah Auditor
+         2. Sedang di dalam folder ($currentFolder true)
+         3. Folder ini TIDAK punya sub-folder lagi ($folders->count() == 0) --}}
+    
+    @if(Auth::user()->role === 'Auditor' && $currentFolder && $folders->count() == 0)
+        
+        {{-- ----- 1. TAMPILAN AUDITOR: TABEL MONITORING ----- --}}
+        
         <div class="d-flex align-items-center mb-3">
             <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
-                <i class="bi bi-file-earmark-text-fill me-2"></i> DOKUMEN ARSIP
-                @if(Auth::user()->role === 'Auditor') 
-                    <span class="text-muted small fw-normal ms-1">(Semua Unit)</span>
-                @else
-                    <span class="text-muted small fw-normal ms-1">(Dokumen Saya)</span>
-                @endif
+                <i class="bi bi-table me-2"></i> MONITORING DOKUMEN UNIT
             </h6>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-2">
-            <div class="list-group list-group-flush">
-                @foreach($files as $file)
-                    <div class="list-group-item list-group-item-action d-flex flex-wrap justify-content-between align-items-center p-3 gap-3 file-item">
-                        <div class="d-flex align-items-center overflow-hidden flex-grow-1">
-                        @php
-                            $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
-                            $iconClass = match($ext) {
-                                'pdf' => 'bi-file-earmark-pdf-fill text-danger',
-                                'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
-                                'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
-                                'ppt', 'pptx' => 'bi-file-earmark-ppt-fill text-warning',
-                                'jpg', 'jpeg', 'png' => 'bi-file-earmark-image-fill text-info',
-                                default => 'bi-file-earmark-text-fill text-secondary'
-                            };
-
-                            $publicUrl = asset('storage/' . $file->file_path);
-                            $viewerUrl = $publicUrl;
-
-                            if (in_array($ext, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'])) {
-                                $viewerUrl = 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
-                            }
-                        @endphp
-                            
-                            <i class="bi {{ $iconClass }} fs-2 me-3 file-icon"></i>
-                            
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1 fw-bold text-dark text-break">{{ $file->name }}</h6>
-                                <div class="small text-muted">
-                                    {{ strtoupper($ext) }} &bull; {{ $file->created_at->format('d M Y') }}
-                                    {{-- Tampilkan pemilik file jika Auditor sedang melihat --}}
-                                    @if(Auth::user()->role === 'Auditor')
-                                        &bull; <span class="badge bg-secondary text-white">{{ $file->user->name ?? 'User ID: '.$file->user_id }}</span>
+        <div class="card shadow-sm border-0 rounded-2 mb-5">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr class="text-secondary small text-uppercase">
+                            <th class="ps-4 py-3">Unit</th>
+                            <th class="py-3">Nama Pengupload</th>
+                            <th class="py-3">Nama Dokumen</th>
+                            <th class="py-3 text-center">Tanggal Upload</th>
+                            <th class="py-3 text-center">Status</th>
+                            <th class="py-3 text-center" style="width: 150px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($units as $unit)
+                            @php
+                                // Cek apakah Unit/User ini sudah upload file di folder ini
+                                $userFile = $files->where('user_id', $unit->id)->first();
+                            @endphp
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="fw-bold text-dark">{{ $unit->role }}</span>
+                                </td>
+                                <td>
+                                    @if($userFile)
+                                        <span class="text-dark">{{ $unit->name }}</span>
+                                    @else
+                                        <span class="text-muted fst-italic small">- Belum ada pengupload -</span>
                                     @endif
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {{-- GROUP TOMBOL AKSI FILE --}}
-                        <div class="d-flex gap-2 ms-auto">
-                            <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                <i class="bi bi-eye me-1"></i> Lihat
-                            </a>
-
-                            <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
-                                <i class="bi bi-download me-1"></i> Unduh
-                            </a>
-
-                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
-                                    onclick="openDeleteModal('{{ route('smkp.delete_file', $file->id) }}', '{{ $file->name }}', 'Dokumen')">
-                                <i class="bi bi-trash me-1"></i> Hapus
-                            </button>
-                        </div>
-                    </div>
-                @endforeach
+                                </td>
+                                <td>
+                                    @if($userFile)
+                                        <div class="d-flex align-items-center">
+                                            @php
+                                                $ext = strtolower(pathinfo($userFile->file_path, PATHINFO_EXTENSION));
+                                                $iconClass = match($ext) {
+                                                    'pdf' => 'bi-file-earmark-pdf-fill text-danger',
+                                                    'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
+                                                    'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
+                                                    default => 'bi-file-earmark-text-fill text-secondary'
+                                                };
+                                            @endphp
+                                            <i class="bi {{ $iconClass }} fs-5 me-2"></i>
+                                            <span class="fw-semibold text-dark">{{ $userFile->name }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-muted fst-italic small">- Belum ada file -</span>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($userFile)
+                                        {{ $userFile->created_at->format('d/m/Y') }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($userFile)
+                                        <i class="bi bi-check-circle-fill text-success fs-4" title="Sudah Upload"></i>
+                                    @else
+                                        <i class="bi bi-x-circle-fill text-danger fs-4" title="Belum Upload"></i>
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    @if($userFile)
+                                        <div class="d-flex justify-content-center gap-1">
+                                            @php
+                                                $publicUrl = asset('storage/' . $userFile->file_path);
+                                                $viewerUrl = in_array($ext, ['pdf', 'jpg', 'png']) ? $publicUrl : 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
+                                            @endphp
+                                            
+                                            <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Lihat">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ route('smkp.download', $userFile->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            <button onclick="openDeleteModal('{{ route('smkp.delete_file', $userFile->id) }}', '{{ $userFile->name }}', 'Dokumen')" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    @else
+                                        <span class="badge bg-light text-secondary border">Wajib Upload</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
-    @elseif($folders->count() == 0 && $files->count() == 0)
-        {{-- TAMPILAN JIKA KOSONG (FOLDER & FILE) --}}
-        <div class="text-center py-5">
-            <i class="bi bi-inbox fs-1 text-muted mb-3 d-block"></i>
-            <span class="text-muted">Folder ini kosong.</span>
-        </div>
+
+    @else
+        
+        {{-- ----- 2. TAMPILAN USER BIASA: LIST BIASA ----- --}}
+
+        @if($files->count() > 0)
+            <div class="d-flex align-items-center mb-3">
+                <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
+                    <i class="bi bi-file-earmark-text-fill me-2"></i> DOKUMEN SAYA
+                </h6>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-2">
+                <div class="list-group list-group-flush">
+                    @foreach($files as $file)
+                        <div class="list-group-item list-group-item-action d-flex flex-wrap justify-content-between align-items-center p-3 gap-3 file-item">
+                            <div class="d-flex align-items-center overflow-hidden flex-grow-1">
+                            @php
+                                $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
+                                $iconClass = match($ext) {
+                                    'pdf' => 'bi-file-earmark-pdf-fill text-danger',
+                                    'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
+                                    'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
+                                    'ppt', 'pptx' => 'bi-file-earmark-ppt-fill text-warning',
+                                    'jpg', 'jpeg', 'png' => 'bi-file-earmark-image-fill text-info',
+                                    default => 'bi-file-earmark-text-fill text-secondary'
+                                };
+
+                                $publicUrl = asset('storage/' . $file->file_path);
+                                $viewerUrl = in_array($ext, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']) 
+                                            ? 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false'
+                                            : $publicUrl;
+                            @endphp
+                                
+                                <i class="bi {{ $iconClass }} fs-2 me-3 file-icon"></i>
+                                
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold text-dark text-break">{{ $file->name }}</h6>
+                                    <div class="small text-muted">
+                                        {{ strtoupper($ext) }} &bull; {{ $file->created_at->format('d M Y') }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {{-- GROUP TOMBOL AKSI FILE --}}
+                            <div class="d-flex gap-2 ms-auto">
+                                <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-eye me-1"></i> Lihat
+                                </a>
+
+                                <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                    <i class="bi bi-download me-1"></i> Unduh
+                                </a>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                        onclick="openDeleteModal('{{ route('smkp.delete_file', $file->id) }}', '{{ $file->name }}', 'Dokumen')">
+                                    <i class="bi bi-trash me-1"></i> Hapus
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @elseif($folders->count() == 0 && $files->count() == 0)
+            <div class="text-center py-5">
+                <i class="bi bi-inbox fs-1 text-muted mb-3 d-block"></i>
+                <span class="text-muted">Folder ini kosong.</span>
+            </div>
+        @endif
+
     @endif
 
+
     {{-- MODAL CREATE FOLDER --}}
-    {{-- HANYA RENDER MODAL INI JIKA AUDITOR --}}
     @if(Auth::user()->role === 'Auditor')
     <div class="modal fade" id="createFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -293,7 +389,7 @@
         </div>
     </div>
     
-    {{-- MODAL EDIT FOLDER (Hanya Auditor) --}}
+    {{-- MODAL EDIT FOLDER --}}
     <div class="modal fade" id="editFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form id="editFolderForm" action="" method="POST" class="w-100">
@@ -324,7 +420,7 @@
     </div>
     @endif
 
-    {{-- MODAL UPLOAD FILE (Semua Role Butuh) --}}
+    {{-- MODAL UPLOAD FILE --}}
     <div class="modal fade" id="uploadFileModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form action="{{ route('smkp.upload', $currentFolder ? $currentFolder->id : null) }}" method="POST" enctype="multipart/form-data" class="w-100">
@@ -356,7 +452,7 @@
         </div>
     </div>
 
-    {{-- MODAL KONFIRMASI HAPUS (Semua Role Butuh untuk file mereka sendiri) --}}
+    {{-- MODAL KONFIRMASI HAPUS --}}
     <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <form id="deleteForm" action="" method="POST" class="w-100">
@@ -383,7 +479,6 @@
     </div>
 
     <script>
-        // HANYA DEFINE FUNGSI EDIT JIKA MODAL ADA (AUDITOR)
         @if(Auth::user()->role === 'Auditor')
         function openEditModal(id, code, name) {
             let form = document.getElementById('editFolderForm');

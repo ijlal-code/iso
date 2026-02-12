@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Folder;
 use App\Models\FileUpload;
+use App\Models\User; // Pastikan Model User di-import
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,7 @@ class SmkpController extends Controller
     public function index($folderId = null)
     {
         $user = Auth::user();
+        $units = []; // Variabel untuk menampung daftar unit (user lain)
 
         // Query Folder (Semua role bisa melihat folder)
         if (!$folderId) {
@@ -38,22 +40,30 @@ class SmkpController extends Controller
             $fileQuery = $currentFolder->files()->getQuery();     
         }
 
-        // LOGIKA FILTER FILE BERDASARKAN ROLE
-        // Jika BUKAN Auditor, hanya tampilkan file milik sendiri (user_id = Auth::id())
-        if ($user->role !== 'Auditor') {
-            $fileQuery->where('user_id', $user->id);
-        }
+        // --- LOGIKA FILTER BERDASARKAN ROLE ---
         
-        // Ambil data file setelah difilter
-        $files = $fileQuery->get();
+        if ($user->role === 'Auditor') {
+            // 1. Jika AUDITOR: Ambil SEMUA file di folder ini
+            // Gunakan 'with' agar query user tidak berulang (n+1 problem)
+            $files = $fileQuery->with('user')->get();
 
-        return view('smkp.index', compact('folders', 'files', 'currentFolder', 'breadcrumbs'));
+            // 2. Ambil daftar Unit (User selain Auditor) untuk Tabel Monitoring
+            // Ini digunakan untuk membuat baris tabel "Siapa yang sudah/belum upload"
+            $units = User::where('role', '!=', 'Auditor')->orderBy('role', 'asc')->get();
+
+        } else {
+            // 1. Jika BUKAN Auditor: Hanya ambil file milik sendiri
+            $fileQuery->where('user_id', $user->id);
+            $files = $fileQuery->get();
+        }
+
+        return view('smkp.index', compact('folders', 'files', 'currentFolder', 'breadcrumbs', 'units'));
     }
 
     public function upload(Request $request, $folderId = null)
     {
         $request->validate([
-            'file' => 'required|file|max:51200', 
+            'file' => 'required|file|max:51200', // Max 50MB
             'name' => 'required|string|max:255', 
         ]);
 
@@ -62,7 +72,7 @@ class SmkpController extends Controller
 
         FileUpload::create([
             'folder_id' => $folderId,
-            'user_id'   => Auth::id(), // Simpan ID User pengupload
+            'user_id'   => Auth::id(),
             'name'      => $request->name,
             'file_path' => str_replace('public/', '', $path),
             'mime_type' => $file->getClientMimeType(),
@@ -75,7 +85,6 @@ class SmkpController extends Controller
 
     public function createFolder(Request $request, $parentId = null)
     {
-        // Cek Role
         if (Auth::user()->role !== 'Auditor') {
             abort(403, 'Hanya Auditor yang dapat membuat folder.');
         }
@@ -96,7 +105,6 @@ class SmkpController extends Controller
 
     public function updateFolder(Request $request, $id)
     {
-        // Cek Role
         if (Auth::user()->role !== 'Auditor') {
             abort(403, 'Hanya Auditor yang dapat mengubah folder.');
         }
@@ -117,7 +125,6 @@ class SmkpController extends Controller
 
     public function deleteFolder($id)
     {
-        // Cek Role
         if (Auth::user()->role !== 'Auditor') {
             abort(403, 'Hanya Auditor yang dapat menghapus folder.');
         }
@@ -140,7 +147,6 @@ class SmkpController extends Controller
         $file = FileUpload::findOrFail($id);
         $user = Auth::user();
 
-        // Cek Hak Akses: Boleh jika Auditor ATAU Pemilik File
         if ($user->role !== 'Auditor' && $file->user_id !== $user->id) {
             abort(403, 'Anda tidak memiliki izin untuk mengunduh file ini.');
         }
@@ -153,17 +159,14 @@ class SmkpController extends Controller
         $file = FileUpload::findOrFail($id);
         $user = Auth::user();
 
-        // Cek Hak Akses: Boleh jika Auditor ATAU Pemilik File
         if ($user->role !== 'Auditor' && $file->user_id !== $user->id) {
             abort(403, 'Anda tidak memiliki izin untuk menghapus file ini.');
         }
 
-        // Hapus fisik file
         if (Storage::exists('public/' . $file->file_path)) {
             Storage::delete('public/' . $file->file_path);
         }
 
-        // Hapus data
         $file->delete();
 
         return back()->with('success', 'Dokumen berhasil dihapus.');
