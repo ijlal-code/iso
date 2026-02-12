@@ -27,9 +27,9 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Pilih Unit / Role</label>
+                        <label class="form-label">Pilih Unit</label>
                         <select name="role" class="form-select" required>
-                            <option value="">-- Pilih Role --</option>
+                            <option value="">-- Pilih Unit --</option>
                             @foreach ($roles as $role)
                                 <option value="{{ $role }}" {{ old('role') == $role ? 'selected' : '' }}>{{ $role }}</option>
                             @endforeach
