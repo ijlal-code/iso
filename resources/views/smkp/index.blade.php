@@ -25,9 +25,10 @@
         .custom-dropdown-menu .dropdown-item:hover { background-color: #f0f0f0; color: #000; }
         .custom-dropdown-menu .dropdown-item.text-danger:hover { background-color: #fff5f5; color: #dc3545; }
         
+        /* Style Tambahan untuk Tabel Per Unit */
         .unit-header {
             background-color: #f8f9fa;
-            border-left: 5px solid #dc3545; 
+            border-left: 5px solid #dc3545; /* Aksen Merah di kiri header */
         }
     </style>
 
@@ -81,9 +82,12 @@
         </div>
 
         <div class="d-flex gap-2">
+            {{-- FITUR 2: Sembunyikan tombol upload jika Auditor --}}
+            @if(Auth::user()->role !== 'Auditor')
             <button class="btn btn-danger shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
                 <i class="bi bi-cloud-upload me-2"></i> Upload File
             </button>
+            @endif
 
             @if(Auth::user()->role === 'Auditor')
             <button class="btn btn-success shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#createFolderModal">
@@ -182,9 +186,8 @@
         <div class="row">
             @foreach($targetRoles as $roleName)
                 @php
-                    // FILTER FILE BERDASARKAN ROLE USER
-                    // Kita ambil dari koleksi $files yang dikirim controller.
-                    // Jika ada user baru dengan role ini, filenya otomatis masuk sini.
+                    // FITUR 1: FILTER FILE BERDASARKAN ROLE USER (AGAR MUNCUL SEMUA FILE)
+                    // Mengambil file yang usernya memiliki role = roleName saat ini
                     $roleFiles = $files->filter(function ($file) use ($roleName) {
                         return $file->user && $file->user->role === $roleName;
                     });
@@ -196,19 +199,19 @@
                         <div class="card-header unit-header py-3 px-4">
                             <h6 class="fw-bold m-0 text-dark">
                                 <i class="bi bi-building me-2 text-secondary"></i> {{ $roleName }}
-                                {{-- Counter badge opsional --}}
+                                {{-- Counter badge (Opsional: menghitung jumlah file) --}}
                                 @if($roleFiles->count() > 0)
                                     <span class="badge bg-danger rounded-pill ms-2">{{ $roleFiles->count() }} File</span>
                                 @endif
                             </h6>
                         </div>
 
-                        {{-- Body: Tabel Individu --}}
+                        {{-- Body: Tabel File --}}
                         <div class="table-responsive">
                             <table class="table align-middle mb-0">
                                 <thead class="bg-white border-bottom">
                                     <tr class="small text-muted text-uppercase">
-                                        <th class="ps-4" style="width: 5%;">No</th>
+                                        <th class="ps-4" style="width: 5%;">No</th> {{-- FITUR 1: Kolom Nomor --}}
                                         <th style="width: 25%;">Nama Pengupload</th>
                                         <th style="width: 30%;">Nama Dokumen</th>
                                         <th class="text-center" style="width: 20%;">Tanggal Upload</th>
@@ -216,6 +219,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {{-- Loop file yang sudah difilter --}}
                                     @forelse($roleFiles as $file)
                                         @php
                                             $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
@@ -229,7 +233,7 @@
                                             };
                                         @endphp
                                         <tr class="bg-white border-bottom">
-                                            <td class="ps-4 fw-bold text-muted">{{ $loop->iteration }}</td>
+                                            <td class="ps-4 fw-bold text-muted">{{ $loop->iteration }}</td> {{-- Nomor Urut --}}
                                             <td class="fw-medium text-dark">
                                                 {{ $file->user->name ?? 'User Terhapus' }}
                                             </td>
@@ -240,18 +244,12 @@
                                                 </div>
                                             </td>
                                             <td class="text-center text-muted">
-                                                {{ $file->created_at->format('d/m/Y') }}
+                                                {{ $file->created_at->format('d/m/Y H:i') }}
                                             </td>
                                             <td class="text-center">
                                                 <div class="d-flex justify-content-center gap-1">
-                                                    @php
-                                                        $publicUrl = asset('storage/' . $file->file_path);
-                                                        $viewerUrl = in_array($ext, ['pdf', 'jpg', 'png', 'jpeg']) ? $publicUrl : 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
-                                                    @endphp
+                                                    {{-- FITUR 2: Tombol Lihat DIHILANGKAN untuk Auditor --}}
                                                     
-                                                    <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Lihat">
-                                                        <i class="bi bi-eye"></i>
-                                                    </a>
                                                     <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
                                                         <i class="bi bi-download"></i>
                                                     </a>
@@ -262,7 +260,7 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        {{-- JIKA KOSONG --}}
+                                        {{-- JIKA BELUM ADA FILE DARI UNIT INI --}}
                                         <tr class="bg-light">
                                             <td colspan="5" class="text-center py-4 text-muted fst-italic">
                                                 <i class="bi bi-exclamation-circle me-1"></i>
@@ -322,9 +320,7 @@
                             </div>
                             
                             <div class="d-flex gap-2 ms-auto">
-                                <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                    <i class="bi bi-eye me-1"></i> Lihat
-                                </a>
+                                
 
                                 <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
                                     <i class="bi bi-download me-1"></i> Unduh
