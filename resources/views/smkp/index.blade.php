@@ -10,13 +10,12 @@
         }
 
         .list-group-item:hover {
-            background-color: #f9fafe; /* Warna background saat hover */
-            border-left: 4px solid #ffc107; /* Garis kuning untuk folder */
-            transform: translateX(4px); /* Geser sedikit ke kanan */
+            background-color: #f9fafe; 
+            border-left: 4px solid #ffc107; 
+            transform: translateX(4px);
             z-index: 10;
         }
 
-        /* Khusus item file, garis hovernya merah (opsional, agar beda dengan folder) */
         .file-item:hover {
             border-left-color: #dc3545; 
         }
@@ -109,17 +108,21 @@
         </div>
 
         <div class="d-flex gap-2">
+            {{-- Semua Role boleh Upload --}}
             <button class="btn btn-danger shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
                 <i class="bi bi-cloud-upload me-2"></i> Upload File
             </button>
 
+            {{-- HANYA AUDITOR yang boleh Tambah Folder --}}
+            @if(Auth::user()->role === 'Auditor')
             <button class="btn btn-success shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#createFolderModal">
                 <i class="bi bi-folder-plus me-2"></i> Tambah Folder
             </button>
+            @endif
         </div>
     </div>
 
-    {{-- FOLDER LIST (TAMPILAN BARU: LIST VIEW) --}}
+    {{-- FOLDER LIST --}}
     @if($folders->count() > 0)
         <div class="d-flex align-items-center mb-3">
             <h6 class="text-black fw-bold m-0 border-bottom border-dark border-2 pb-1 pe-3">
@@ -149,7 +152,8 @@
                         </div>
                     </a>
 
-                    {{-- TOMBOL OPSI (DROPDOWN) --}}
+                    {{-- HANYA AUDITOR yang boleh Edit/Hapus Folder --}}
+                    @if(Auth::user()->role === 'Auditor')
                     <div class="dropdown ms-3">
                         <button class="btn btn-light btn-sm rounded-circle border shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-three-dots-vertical"></i>
@@ -171,6 +175,7 @@
                             </li>
                         </ul>
                     </div>
+                    @endif
 
                 </div>
                 @endforeach
@@ -179,10 +184,16 @@
     @endif
 
     {{-- FILE LIST --}}
+    {{-- List ini sudah difilter dari Controller. Jika Auditor: tampil semua. Jika Role lain: tampil milik sendiri. --}}
     @if($files->count() > 0)
         <div class="d-flex align-items-center mb-3">
             <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
                 <i class="bi bi-file-earmark-text-fill me-2"></i> DOKUMEN ARSIP
+                @if(Auth::user()->role === 'Auditor') 
+                    <span class="text-muted small fw-normal ms-1">(Semua Unit)</span>
+                @else
+                    <span class="text-muted small fw-normal ms-1">(Dokumen Saya)</span>
+                @endif
             </h6>
         </div>
 
@@ -202,12 +213,9 @@
                                 default => 'bi-file-earmark-text-fill text-secondary'
                             };
 
-                            // --- LOGIC VIEWER URL ---
-                            // Menggunakan asset() karena belum ada route stream khusus
                             $publicUrl = asset('storage/' . $file->file_path);
                             $viewerUrl = $publicUrl;
 
-                            // Gunakan Google Viewer untuk dokumen Office/PDF
                             if (in_array($ext, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'])) {
                                 $viewerUrl = 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
                             }
@@ -219,6 +227,10 @@
                                 <h6 class="mb-1 fw-bold text-dark text-break">{{ $file->name }}</h6>
                                 <div class="small text-muted">
                                     {{ strtoupper($ext) }} &bull; {{ $file->created_at->format('d M Y') }}
+                                    {{-- Tampilkan pemilik file jika Auditor sedang melihat --}}
+                                    @if(Auth::user()->role === 'Auditor')
+                                        &bull; <span class="badge bg-secondary text-white">{{ $file->user->name ?? 'User ID: '.$file->user_id }}</span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -251,6 +263,8 @@
     @endif
 
     {{-- MODAL CREATE FOLDER --}}
+    {{-- HANYA RENDER MODAL INI JIKA AUDITOR --}}
+    @if(Auth::user()->role === 'Auditor')
     <div class="modal fade" id="createFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form action="{{ route('smkp.create_folder', $currentFolder ? $currentFolder->id : null) }}" method="POST" class="w-100">
@@ -278,8 +292,39 @@
             </form>
         </div>
     </div>
+    
+    {{-- MODAL EDIT FOLDER (Hanya Auditor) --}}
+    <div class="modal fade" id="editFolderModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form id="editFolderForm" action="" method="POST" class="w-100">
+                @csrf
+                @method('PUT')
+                <div class="modal-content rounded-3 border-0 shadow">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold">Edit Folder</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">KODE</label>
+                            <input type="text" name="code" id="editFolderCode" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">NAMA FOLDER</label>
+                            <input type="text" name="name" id="editFolderName" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-link btn-black text-white text-secondary text-decoration-none" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning px-4">Update</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
-    {{-- MODAL UPLOAD FILE --}}
+    {{-- MODAL UPLOAD FILE (Semua Role Butuh) --}}
     <div class="modal fade" id="uploadFileModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form action="{{ route('smkp.upload', $currentFolder ? $currentFolder->id : null) }}" method="POST" enctype="multipart/form-data" class="w-100">
@@ -311,37 +356,7 @@
         </div>
     </div>
 
-    {{-- MODAL EDIT FOLDER --}}
-    <div class="modal fade" id="editFolderModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <form id="editFolderForm" action="" method="POST" class="w-100">
-                @csrf
-                @method('PUT')
-                <div class="modal-content rounded-3 border-0 shadow">
-                    <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title fw-bold">Edit Folder</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">KODE</label>
-                            <input type="text" name="code" id="editFolderCode" class="form-control">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">NAMA FOLDER</label>
-                            <input type="text" name="name" id="editFolderName" class="form-control" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-link btn-black text-white text-secondary text-decoration-none" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-warning px-4">Update</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- MODAL KONFIRMASI HAPUS --}}
+    {{-- MODAL KONFIRMASI HAPUS (Semua Role Butuh untuk file mereka sendiri) --}}
     <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <form id="deleteForm" action="" method="POST" class="w-100">
@@ -368,6 +383,8 @@
     </div>
 
     <script>
+        // HANYA DEFINE FUNGSI EDIT JIKA MODAL ADA (AUDITOR)
+        @if(Auth::user()->role === 'Auditor')
         function openEditModal(id, code, name) {
             let form = document.getElementById('editFolderForm');
             let baseUrl = "{{ route('smkp.update_folder', 'placeholder_id') }}";
@@ -379,6 +396,7 @@
             var myModal = new bootstrap.Modal(document.getElementById('editFolderModal'));
             myModal.show();
         }
+        @endif
 
         function openDeleteModal(url, name, type) {
             let form = document.getElementById('deleteForm');

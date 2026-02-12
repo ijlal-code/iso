@@ -19,40 +19,26 @@ class SmkpSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // 2. BUAT AKUN PENGGUNA
-        // Daftar Role sesuai permintaan
-        $roles = [
-            'KTT',
-            'Pengelola Sistem',
-            'Audit Internal',
-            'Pengelola Risiko',
-            'Pengelola Legal',
-            'Pengelola K3 & Lingk.',
-            'Pengel. SDM & Diklat',
-            'Pengawas Operasional',
-            'Bag. K3 & KO Pertamb.',
-            'PJO',
-            'Pengawas Oper. PJO',
-            'Pengawas Teknik PJO',
-            'Bag. K3 & KO PJO',
-        ];
+        // Kita gunakan daftar dari Model atau definisikan ulang disini agar sesuai urutan
+        $roles = User::ROLES;
 
         $unitCounter = 1;
 
         foreach ($roles as $roleName) {
-            // Logika Penamaan:
-            // Jika role adalah 'Audit Internal', nama = 'Auditor'
-            // Selain itu, nama = 'Unit X' (X nambah terus)
-            
-            if ($roleName === 'auditor') {
-                $name = 'auditor';
+            // Logika Penamaan User
+            if ($roleName === 'Auditor') {
+                $name = 'Auditor';
+                $email = 'auditor@example.com';
             } else {
-                $name = 'Unit ' . $unitCounter;
+                $name = 'Unit ' . $unitCounter . ' (' . $roleName . ')';
+                $email = 'user' . $unitCounter . '@example.com';
                 $unitCounter++;
             }
 
             User::create([
-                'name' => $name,          // Nama: Unit 1, Unit 2... atau Auditor
-                'role' => $roleName,      // Role: KTT, Pengelola Sistem...
+                'name' => $name,
+                'email' => $email, // Opsional: generate email dummy
+                'role' => $roleName,
                 'password' => Hash::make('password'),
             ]);
         }

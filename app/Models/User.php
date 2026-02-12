@@ -14,6 +14,7 @@ class User extends Authenticatable
      * Daftar Role yang tersedia
      */
     const ROLES = [
+        'Auditor', // ROLE UTAMA (SUPER USER UNTUK FILE)
         'KTT',
         'Pengelola Sistem',
         'Audit Internal',
@@ -27,12 +28,11 @@ class User extends Authenticatable
         'Pengawas Oper. PJO',
         'Pengawas Teknik PJO',
         'Bag. K3 & KO PJO',
-        'auditor'
     ];
 
     protected $fillable = [
         'name',
-        'role', // Tambahkan role
+        'role',
         'email',
         'password',
     ];
