@@ -84,10 +84,25 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarContent">
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="{{ route('smkp.index') }}"><i class="bi bi-folder2-open me-1"></i> Data Dokumen</a>
-                    </li>
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+                    @auth
+                        <li class="nav-item">
+                            <span class="nav-link text-white">
+                                <i class="bi bi-person-circle me-1"></i> {{ Auth::user()->name }} 
+                                <span class="badge bg-danger ms-1" style="font-size: 0.6rem;">{{ Auth::user()->role }}</span>
+                            </span>
+                        </li>
+                        <li class="nav-item ms-lg-2">
+                            <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
+                            </form>
+                        </li>
+                    @else
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('login') }}">Login</a>
+                        </li>
+                    @endauth
                 </ul>
             </div>
         </div>
