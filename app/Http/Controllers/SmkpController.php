@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Folder;
 use App\Models\FileUpload;
-use App\Models\User; // Pastikan Model User di-import
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
@@ -14,21 +14,23 @@ class SmkpController extends Controller
     public function index($folderId = null)
     {
         $user = Auth::user();
-        $units = []; // Variabel untuk menampung daftar unit (user lain)
+        $units = []; // Inisialisasi variabel units
 
-        // Query Folder (Semua role bisa melihat folder)
+        // --- 1. LOGIKA FOLDER & BREADCRUMBS ---
         if (!$folderId) {
+            // Jika di Root (Halaman Awal)
             $folders = Folder::whereNull('parent_id')->get();
             $currentFolder = null;
             $breadcrumbs = [];
             
-            // Query File di Root
+            // Query dasar untuk file di root
             $fileQuery = FileUpload::whereNull('folder_id');
         } else {
+            // Jika di dalam Folder
             $currentFolder = Folder::with('children')->findOrFail($folderId);
             $folders = $currentFolder->children;
             
-            // Breadcrumbs
+            // Buat Breadcrumbs
             $breadcrumbs = [];
             $temp = $currentFolder;
             while($temp) {
@@ -36,23 +38,23 @@ class SmkpController extends Controller
                 $temp = $temp->parent;
             }
 
-            // Query File di Folder ini
+            // Query dasar untuk file di folder ini
             $fileQuery = $currentFolder->files()->getQuery();     
         }
 
-        // --- LOGIKA FILTER BERDASARKAN ROLE ---
-        
+        // --- 2. LOGIKA FILTER BERDASARKAN ROLE ---
         if ($user->role === 'Auditor') {
-            // 1. Jika AUDITOR: Ambil SEMUA file di folder ini
-            // Gunakan 'with' agar query user tidak berulang (n+1 problem)
+            // Jika AUDITOR:
+            // 1. Ambil SEMUA file di folder ini (eager load 'user' untuk performa)
             $files = $fileQuery->with('user')->get();
 
-            // 2. Ambil daftar Unit (User selain Auditor) untuk Tabel Monitoring
-            // Ini digunakan untuk membuat baris tabel "Siapa yang sudah/belum upload"
-            $units = User::where('role', '!=', 'Auditor')->orderBy('role', 'asc')->get();
+            // 2. Ambil semua User selain Auditor
+            // Data ini dikirim ke View untuk dijadikan basis tabel monitoring per unit
+            $units = User::where('role', '!=', 'Auditor')->get();
 
         } else {
-            // 1. Jika BUKAN Auditor: Hanya ambil file milik sendiri
+            // Jika BUKAN Auditor (User Biasa):
+            // Hanya ambil file milik user yang sedang login
             $fileQuery->where('user_id', $user->id);
             $files = $fileQuery->get();
         }
@@ -68,12 +70,14 @@ class SmkpController extends Controller
         ]);
 
         $file = $request->file('file');
+        // Simpan ke storage/app/public/smkp_files
         $path = $file->store('public/smkp_files');
 
         FileUpload::create([
             'folder_id' => $folderId,
             'user_id'   => Auth::id(),
             'name'      => $request->name,
+            // Hapus prefix 'public/' agar path bisa diakses via asset() atau Storage::url()
             'file_path' => str_replace('public/', '', $path),
             'mime_type' => $file->getClientMimeType(),
         ]);
@@ -85,6 +89,7 @@ class SmkpController extends Controller
 
     public function createFolder(Request $request, $parentId = null)
     {
+        // Pastikan hanya Auditor yang bisa akses
         if (Auth::user()->role !== 'Auditor') {
             abort(403, 'Hanya Auditor yang dapat membuat folder.');
         }
@@ -132,6 +137,8 @@ class SmkpController extends Controller
         $folder = Folder::findOrFail($id);
         $parentId = $folder->parent_id;
         
+        // Menghapus folder akan menghapus sub-folder & file secara cascade 
+        // (pastikan setting foreign key database ON DELETE CASCADE, atau handle manual jika perlu)
         $folder->delete();
 
         if($parentId) {
@@ -147,6 +154,7 @@ class SmkpController extends Controller
         $file = FileUpload::findOrFail($id);
         $user = Auth::user();
 
+        // Validasi: Hanya pemilik file atau Auditor yang boleh download
         if ($user->role !== 'Auditor' && $file->user_id !== $user->id) {
             abort(403, 'Anda tidak memiliki izin untuk mengunduh file ini.');
         }
@@ -159,14 +167,17 @@ class SmkpController extends Controller
         $file = FileUpload::findOrFail($id);
         $user = Auth::user();
 
+        // Validasi: Hanya pemilik file atau Auditor yang boleh hapus
         if ($user->role !== 'Auditor' && $file->user_id !== $user->id) {
             abort(403, 'Anda tidak memiliki izin untuk menghapus file ini.');
         }
 
+        // Hapus fisik file dari storage
         if (Storage::exists('public/' . $file->file_path)) {
             Storage::delete('public/' . $file->file_path);
         }
 
+        // Hapus record dari database
         $file->delete();
 
         return back()->with('success', 'Dokumen berhasil dihapus.');

@@ -3,57 +3,36 @@
 @section('content')
 
     <style>
-        /* 1. STYLE TAMPILAN LIST (FOLDER) */
         .list-group-item {
             transition: all 0.2s ease-in-out;
             border-left: 4px solid transparent;
         }
-
         .list-group-item:hover {
             background-color: #f9fafe; 
             border-left: 4px solid #ffc107; 
             transform: translateX(4px);
             z-index: 10;
         }
-
-        .folder-icon {
-            transition: transform 0.2s;
-        }
-
-        .list-group-item:hover .folder-icon {
-            transform: scale(1.15);
-        }
-
-        /* 2. DROPDOWN MENU */
+        .folder-icon { transition: transform 0.2s; }
+        .list-group-item:hover .folder-icon { transform: scale(1.15); }
         .custom-dropdown-menu {
-            border: 0;
-            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
-            border-radius: 0.5rem;
-            padding: 0.5rem;
-            min-width: 200px;
-            z-index: 1000; 
+            border: 0; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+            border-radius: 0.5rem; padding: 0.5rem; min-width: 200px; z-index: 1000; 
         }
-        
         .custom-dropdown-menu .dropdown-item {
-            border-radius: 4px;
-            padding: 8px 12px;
-            font-weight: 500;
-            color: #333;
-            transition: background 0.2s;
+            border-radius: 4px; padding: 8px 12px; font-weight: 500; color: #333; transition: background 0.2s;
         }
-
-        .custom-dropdown-menu .dropdown-item:hover {
-            background-color: #f0f0f0;
-            color: #000;
-        }
-
-        .custom-dropdown-menu .dropdown-item.text-danger:hover {
-            background-color: #fff5f5;
-            color: #dc3545;
+        .custom-dropdown-menu .dropdown-item:hover { background-color: #f0f0f0; color: #000; }
+        .custom-dropdown-menu .dropdown-item.text-danger:hover { background-color: #fff5f5; color: #dc3545; }
+        
+        /* Style Tambahan untuk Tabel Per Unit */
+        .unit-header {
+            background-color: #f8f9fa;
+            border-left: 5px solid #dc3545; /* Aksen Merah di kiri header */
         }
     </style>
 
-    {{-- BREADCRUMB NAVIGATION --}}
+    {{-- BREADCRUMB --}}
     <div class="card shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body p-3">
             <nav aria-label="breadcrumb">
@@ -81,7 +60,7 @@
         </div>
     </div>
 
-    {{-- ALERT DISMISSIBLE --}}
+    {{-- ALERT --}}
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show border-0 border-start border-5 border-success shadow-sm mb-4" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
@@ -89,7 +68,7 @@
         </div>
     @endif
 
-    {{-- TOMBOL AKSI UTAMA --}}
+    {{-- TOMBOL UTAMA --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
         <div>
             @if($currentFolder)
@@ -103,12 +82,10 @@
         </div>
 
         <div class="d-flex gap-2">
-            {{-- Semua Role boleh Upload --}}
             <button class="btn btn-danger shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
                 <i class="bi bi-cloud-upload me-2"></i> Upload File
             </button>
 
-            {{-- HANYA AUDITOR yang boleh Tambah Folder --}}
             @if(Auth::user()->role === 'Auditor')
             <button class="btn btn-success shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#createFolderModal">
                 <i class="bi bi-folder-plus me-2"></i> Tambah Folder
@@ -117,7 +94,7 @@
         </div>
     </div>
 
-    {{-- FOLDER LIST --}}
+    {{-- LIST FOLDER --}}
     @if($folders->count() > 0)
         <div class="d-flex align-items-center mb-3">
             <h6 class="text-black fw-bold m-0 border-bottom border-dark border-2 pb-1 pe-3">
@@ -129,8 +106,6 @@
             <div class="list-group list-group-flush">
                 @foreach($folders as $folder)
                 <div class="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between">
-                    
-                    {{-- LINK FOLDER --}}
                     <a href="{{ route('smkp.index', $folder->id) }}" class="d-flex align-items-center text-decoration-none text-dark flex-grow-1">
                         <i class="bi bi-folder-fill text-warning fs-2 me-3 folder-icon"></i>
                         <div>
@@ -144,7 +119,6 @@
                         </div>
                     </a>
 
-                    {{-- HANYA AUDITOR yang boleh Edit/Hapus Folder --}}
                     @if(Auth::user()->role === 'Auditor')
                     <div class="dropdown ms-3">
                         <button class="btn btn-light btn-sm rounded-circle border shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -168,7 +142,6 @@
                         </ul>
                     </div>
                     @endif
-
                 </div>
                 @endforeach
             </div>
@@ -177,119 +150,137 @@
 
 
     {{-- ========================================================= --}}
-    {{-- TAMPILAN MONITORING / FILE LIST BERDASARKAN ROLE --}}
+    {{-- TAMPILAN MONITORING (AUDITOR) --}}
     {{-- ========================================================= --}}
-
-    {{-- LOGIKA: Tampilkan Tabel Monitoring HANYA jika:
-         1. User adalah Auditor
-         2. Sedang di dalam folder ($currentFolder true)
-         3. Folder ini TIDAK punya sub-folder lagi ($folders->count() == 0) --}}
     
     @if(Auth::user()->role === 'Auditor' && $currentFolder && $folders->count() == 0)
         
-        {{-- ----- 1. TAMPILAN AUDITOR: TABEL MONITORING ----- --}}
-        
-        <div class="d-flex align-items-center mb-3">
+        <div class="d-flex align-items-center mb-4">
             <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
-                <i class="bi bi-table me-2"></i> MONITORING DOKUMEN UNIT
+                <i class="bi bi-grid-1x2 me-2"></i> MONITORING DOKUMEN PER UNIT
             </h6>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-2 mb-5">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr class="text-secondary small text-uppercase">
-                            <th class="ps-4 py-3">Unit</th>
-                            <th class="py-3">Nama Pengupload</th>
-                            <th class="py-3">Nama Dokumen</th>
-                            <th class="py-3 text-center">Tanggal Upload</th>
-                            <th class="py-3 text-center">Status</th>
-                            <th class="py-3 text-center" style="width: 150px;">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($units as $unit)
-                            @php
-                                // Cek apakah Unit/User ini sudah upload file di folder ini
-                                $userFile = $files->where('user_id', $unit->id)->first();
-                            @endphp
-                            <tr>
-                                <td class="ps-4">
-                                    <span class="fw-bold text-dark">{{ $unit->role }}</span>
-                                </td>
-                                <td>
+        @php
+            // DAFTAR UNIT / ROLE SESUAI URUTAN
+            $targetRoles = [
+                'KTT',
+                'Pengelola Sistem',
+                'Audit Internal',
+                'Pengelola Risiko',
+                'Pengelola Legal',
+                'Pengelola K3 & Lingk.',
+                'Pengel. SDM & Diklat',
+                'Pengawas Operasional',
+                'Bag. K3 & KO Pertamb.',
+                'PJO',
+                'Pengawas Oper. PJO',
+                'Pengawas Teknik PJO',
+                'Bag. K3 & KO PJO',
+            ];
+        @endphp
+
+        <div class="row">
+            @foreach($targetRoles as $roleName)
+                @php
+                    // Ambil Data User berdasarkan Role
+                    $unit = $units->firstWhere('role', $roleName);
+                    
+                    // Cek apakah ada file untuk user tersebut
+                    $userFile = null;
+                    $uploaderName = null;
+
+                    if ($unit) {
+                        $userFile = $files->where('user_id', $unit->id)->first();
+                        if ($userFile) {
+                            $uploaderName = $unit->name;
+                        }
+                    }
+                @endphp
+
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm border-0 rounded-2 overflow-hidden">
+                        {{-- Header Tabel: Nama Unit --}}
+                        <div class="card-header unit-header py-3 px-4">
+                            <h6 class="fw-bold m-0 text-dark">
+                                <i class="bi bi-building me-2 text-secondary"></i> {{ $roleName }}
+                            </h6>
+                        </div>
+
+                        {{-- Body: Tabel Individu --}}
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead class="bg-white border-bottom">
+                                    <tr class="small text-muted text-uppercase">
+                                        <th class="ps-4" style="width: 25%;">Nama Pengupload</th>
+                                        <th style="width: 35%;">Nama Dokumen</th>
+                                        <th class="text-center" style="width: 20%;">Tanggal Upload</th>
+                                        <th class="text-center" style="width: 20%;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                     @if($userFile)
-                                        <span class="text-dark">{{ $unit->name }}</span>
+                                        <tr class="bg-white">
+                                            <td class="ps-4 fw-medium text-dark">
+                                                {{ $uploaderName }}
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $ext = strtolower(pathinfo($userFile->file_path, PATHINFO_EXTENSION));
+                                                    $iconClass = match($ext) {
+                                                        'pdf' => 'bi-file-earmark-pdf-fill text-danger',
+                                                        'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
+                                                        'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
+                                                        default => 'bi-file-earmark-text-fill text-secondary'
+                                                    };
+                                                @endphp
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi {{ $iconClass }} fs-5 me-2"></i>
+                                                    <span class="fw-semibold text-dark">{{ $userFile->name }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-center text-muted">
+                                                {{ $userFile->created_at->format('d/m/Y H:i') }}
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="d-flex justify-content-center gap-1">
+                                                    @php
+                                                        $publicUrl = asset('storage/' . $userFile->file_path);
+                                                        $viewerUrl = in_array($ext, ['pdf', 'jpg', 'png']) ? $publicUrl : 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
+                                                    @endphp
+                                                    
+                                                    <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Lihat">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('smkp.download', $userFile->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
+                                                        <i class="bi bi-download"></i>
+                                                    </a>
+                                                    <button onclick="openDeleteModal('{{ route('smkp.delete_file', $userFile->id) }}', '{{ $userFile->name }}', 'Dokumen')" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     @else
-                                        <span class="text-muted fst-italic small">- Belum ada pengupload -</span>
+                                        {{-- JIKA BELUM UPLOAD --}}
+                                        <tr class="bg-light">
+                                            <td colspan="4" class="text-center py-4 text-muted fst-italic">
+                                                <i class="bi bi-exclamation-circle me-1"></i>
+                                                Belum ada dokumen yang diupload oleh unit ini.
+                                            </td>
+                                        </tr>
                                     @endif
-                                </td>
-                                <td>
-                                    @if($userFile)
-                                        <div class="d-flex align-items-center">
-                                            @php
-                                                $ext = strtolower(pathinfo($userFile->file_path, PATHINFO_EXTENSION));
-                                                $iconClass = match($ext) {
-                                                    'pdf' => 'bi-file-earmark-pdf-fill text-danger',
-                                                    'doc', 'docx' => 'bi-file-earmark-word-fill text-primary',
-                                                    'xls', 'xlsx' => 'bi-file-earmark-excel-fill text-success',
-                                                    default => 'bi-file-earmark-text-fill text-secondary'
-                                                };
-                                            @endphp
-                                            <i class="bi {{ $iconClass }} fs-5 me-2"></i>
-                                            <span class="fw-semibold text-dark">{{ $userFile->name }}</span>
-                                        </div>
-                                    @else
-                                        <span class="text-muted fst-italic small">- Belum ada file -</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if($userFile)
-                                        {{ $userFile->created_at->format('d/m/Y') }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if($userFile)
-                                        <i class="bi bi-check-circle-fill text-success fs-4" title="Sudah Upload"></i>
-                                    @else
-                                        <i class="bi bi-x-circle-fill text-danger fs-4" title="Belum Upload"></i>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if($userFile)
-                                        <div class="d-flex justify-content-center gap-1">
-                                            @php
-                                                $publicUrl = asset('storage/' . $userFile->file_path);
-                                                $viewerUrl = in_array($ext, ['pdf', 'jpg', 'png']) ? $publicUrl : 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false';
-                                            @endphp
-                                            
-                                            <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Lihat">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="{{ route('smkp.download', $userFile->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
-                                                <i class="bi bi-download"></i>
-                                            </a>
-                                            <button onclick="openDeleteModal('{{ route('smkp.delete_file', $userFile->id) }}', '{{ $userFile->name }}', 'Dokumen')" class="btn btn-sm btn-outline-danger" title="Hapus">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    @else
-                                        <span class="badge bg-light text-secondary border">Wajib Upload</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
         </div>
 
     @else
         
-        {{-- ----- 2. TAMPILAN USER BIASA: LIST BIASA ----- --}}
+        {{-- ----- 2. TAMPILAN USER BIASA (NON-AUDITOR) ----- --}}
 
         @if($files->count() > 0)
             <div class="d-flex align-items-center mb-3">
@@ -330,7 +321,6 @@
                                 </div>
                             </div>
                             
-                            {{-- GROUP TOMBOL AKSI FILE --}}
                             <div class="d-flex gap-2 ms-auto">
                                 <a href="{{ $viewerUrl }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                                     <i class="bi bi-eye me-1"></i> Lihat
@@ -357,7 +347,6 @@
         @endif
 
     @endif
-
 
     {{-- MODAL CREATE FOLDER --}}
     @if(Auth::user()->role === 'Auditor')
@@ -389,7 +378,6 @@
         </div>
     </div>
     
-    {{-- MODAL EDIT FOLDER --}}
     <div class="modal fade" id="editFolderModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form id="editFolderForm" action="" method="POST" class="w-100">
