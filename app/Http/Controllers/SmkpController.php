@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class SmkpController extends Controller
 {
-    public function index($folderId = null)
+   public function index(Request $request, $folderId = null)
     {
         $user = Auth::user();
         $units = []; 
@@ -41,15 +41,38 @@ class SmkpController extends Controller
             $fileQuery = $currentFolder->files()->getQuery();     
         }
 
-        // --- 2. LOGIKA FILTER BERDASARKAN ROLE ---
-        if ($user->role === 'Auditor') {
-            // AUDITOR: Melihat semua file di folder ini
-            // Penting: with('user') agar kita bisa cek role pengupload di View
-            $files = $fileQuery->with('user')->get();
+        // --- 2. LOGIKA FILTER & PENCARIAN CANGGIH ---
+        
+        // A. Filter Dropdown Unit (Strict/Pasti)
+        if ($request->has('unit') && $request->unit != '') {
+            $fileQuery->whereHas('user', function($q) use ($request) {
+                $q->where('role', $request->unit);
+            });
+        }
 
-            // Kita ambil list user hanya sebagai referensi jika dibutuhkan, 
-            // tapi logika utama nanti ada di filtering $files
-            $units = User::where('role', '!=', 'Auditor')->get();
+        // B. Pencarian Text Global (Nama File, Nama Pengirim, Nama Unit)
+        if ($request->has('q') && $request->q != '') {
+            $search = $request->q;
+            
+            $fileQuery->where(function($query) use ($search) {
+                // 1. Cari berdasarkan Nama File
+                $query->where('name', 'like', '%' . $search . '%')
+                      // 2. ATAU Cari berdasarkan data User (Pengirim/Unit)
+                      ->orWhereHas('user', function($u) use ($search) {
+                          $u->where('name', 'like', '%' . $search . '%') // Nama Pengirim
+                            ->orWhere('role', 'like', '%' . $search . '%'); // Nama Unit
+                      });
+            });
+        }
+
+        // --- 3. LOGIKA AKSES ROLE ---
+        if ($user->role === 'Auditor') {
+            // AUDITOR: Melihat semua file (yang sudah difilter di atas)
+            $files = $fileQuery->with('user')->latest()->get();
+
+            // Ambil list unit untuk dropdown (hanya user selain Auditor)
+            // (Opsional: Jika ingin dinamis dari DB)
+            // $units = User::select('role')->distinct()->where('role', '!=', 'Auditor')->orderBy('role')->pluck('role');
 
         } else {
             // USER BIASA: Hanya file milik sendiri

@@ -159,21 +159,11 @@
     @if(Auth::user()->role === 'Auditor' && $currentFolder && $folders->count() == 0)
         
         @php
-            // DEFINISIKAN ARRAY TARGET ROLES DI SINI AGAR BISA DIPAKAI DI DROPDOWN DAN LOOPING
             $targetRoles = [
-                'KTT',
-                'Pengelola Sistem',
-                'Audit Internal',
-                'Pengelola Risiko',
-                'Pengelola Legal',
-                'Pengelola K3 & Lingk.',
-                'Pengel. SDM & Diklat',
-                'Pengawas Operasional',
-                'Bag. K3 & KO Pertamb.',
-                'PJO',
-                'Pengawas Oper. PJO',
-                'Pengawas Teknik PJO',
-                'Bag. K3 & KO PJO',
+                'KTT', 'Pengelola Sistem', 'Audit Internal', 'Pengelola Risiko', 
+                'Pengelola Legal', 'Pengelola K3 & Lingk.', 'Pengel. SDM & Diklat', 
+                'Pengawas Operasional', 'Bag. K3 & KO Pertamb.', 'PJO', 
+                'Pengawas Oper. PJO', 'Pengawas Teknik PJO', 'Bag. K3 & KO PJO',
             ];
             $hasData = false;
         @endphp
@@ -184,12 +174,12 @@
             </h6>
         </div>
 
-        {{-- FITUR BARU: FILTER BAR --}}
+        {{-- FITUR BARU: FILTER BAR & SEARCH --}}
         <div class="card border-0 shadow-sm bg-light mb-4">
             <div class="card-body p-3">
                 <form action="{{ url()->current() }}" method="GET" class="row g-2 align-items-center">
                     
-                    {{-- Filter Dropdown Unit (MENGGUNAKAN $targetRoles agar RAPI) --}}
+                    {{-- Filter Dropdown Unit --}}
                     <div class="col-md-4">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-funnel"></i></span>
@@ -209,11 +199,11 @@
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
                             <input type="text" name="q" class="form-control border-start-0 ps-0" 
-                                   placeholder="Cari nama dokumen..." value="{{ request('q') }}">
+                                   placeholder="Cari file, pengirim, atau unit..." value="{{ request('q') }}">
                         </div>
                     </div>
 
-                    {{-- Tombol Reset/Filter --}}
+                    {{-- Tombol Reset --}}
                     <div class="col-md-2 text-end">
                         @if(request('unit') || request('q'))
                             <a href="{{ url()->current() }}" class="btn btn-outline-secondary w-100">
@@ -237,32 +227,37 @@
                         return $file->user && $file->user->role === $roleName;
                     });
 
-                    // LOGIKA TAMPILAN (DIPERBARUI):
+                    // --- LOGIKA TAMPILAN SMART (UPDATED) ---
                     
-                    // 1. Jika User memilih Filter Unit tertentu:
-                    //    Tampilkan HANYA unit yang dipilih, meskipun filenya kosong.
-                    //    Skip unit lain.
+                    // Cek apakah Nama Unit (misal: "KTT") mengandung kata kunci pencarian
+                    // stripos digunakan agar tidak case-sensitive
+                    $unitNameMatchesSearch = request('q') && stripos($roleName, request('q')) !== false;
+
+                    // 1. Jika Filter Dropdown Aktif:
                     if (request('unit')) {
                         if (request('unit') !== $roleName) {
-                            continue; // Skip unit yang tidak dipilih
+                            continue; // Skip unit lain
                         }
-                        // Jika unit cocok, kita JANGAN continue meskipun count == 0
-                        // agar tabel kosong tetap tampil.
+                        // Unit yang dipilih akan TAMPIL (walaupun 0 file)
                     }
                     
-                    // 2. Jika User HANYA mencari teks (Tanpa Filter Unit):
-                    //    Barulah kita sembunyikan tabel yang kosong agar tidak menuhi layar.
-                    else if (request('q') && $roleFiles->count() === 0) {
-                        continue;
+                    // 2. Jika Sedang Search Text (Tanpa Dropdown):
+                    else if (request('q')) {
+                        // Tampilkan Card JIKA:
+                        // a. Ada file di dalamnya ($roleFiles > 0)
+                        // b. ATAU Nama Unitnya sendiri cocok dengan search ($unitNameMatchesSearch)
+                        
+                        if ($roleFiles->count() === 0 && !$unitNameMatchesSearch) {
+                            continue; // Sembunyikan jika tidak ada file DAN nama unit tidak cocok
+                        }
                     }
 
-                    // Menandakan setidaknya ada 1 tabel yang dirender
                     $hasData = true;
                 @endphp
 
                 <div class="col-12 mb-4">
                     <div class="card shadow-sm border-0 rounded-2 overflow-hidden">
-                        {{-- Header Tabel: Nama Unit --}}
+                        {{-- Header Tabel --}}
                         <div class="card-header unit-header py-3 px-4 d-flex justify-content-between align-items-center">
                             <h6 class="fw-bold m-0 text-dark">
                                 <i class="bi bi-building me-2 text-secondary"></i> {{ $roleName }}
@@ -287,7 +282,6 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {{-- Loop file yang sudah difilter --}}
                                     @forelse($roleFiles as $file)
                                         @php
                                             $ext = strtolower(pathinfo($file->file_path, PATHINFO_EXTENSION));
@@ -302,9 +296,7 @@
                                         @endphp
                                         <tr class="bg-white border-bottom">
                                             <td class="ps-4 fw-bold text-muted">{{ $loop->iteration }}</td> 
-                                            <td class="fw-medium text-dark">
-                                                {{ $file->user->name ?? 'User Terhapus' }}
-                                            </td>
+                                            <td class="fw-medium text-dark">{{ $file->user->name ?? 'User Terhapus' }}</td>
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <i class="bi {{ $iconClass }} fs-5 me-2"></i>
@@ -326,11 +318,14 @@
                                             </td>
                                         </tr>
                                     @empty
-                                        {{-- JIKA BELUM ADA FILE DARI UNIT INI --}}
                                         <tr class="bg-white">
                                             <td colspan="5" class="text-center py-4 text-muted fst-italic">
                                                 <i class="bi bi-exclamation-circle me-1"></i>
-                                                Belum ada dokumen.
+                                                @if(request('q'))
+                                                    Tidak ada dokumen yang cocok dengan pencarian di unit ini.
+                                                @else
+                                                    Belum ada dokumen.
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforelse
@@ -342,20 +337,19 @@
             @endforeach
         </div>
 
-        {{-- EMPTY STATE: Jika hasil pencarian Teks (tanpa filter unit) nihil --}}
+        {{-- EMPTY STATE --}}
         @if(!$hasData)
             <div class="alert alert-warning text-center border-0 shadow-sm py-5 mt-3">
                 <i class="bi bi-search fs-1 mb-3 d-block text-warning"></i>
                 <h5 class="fw-bold">Data Tidak Ditemukan</h5>
-                <p class="text-muted">Tidak ada dokumen yang sesuai dengan filter atau pencarian Anda.</p>
+                <p class="text-muted">Tidak ada dokumen atau unit yang sesuai dengan pencarian Anda.</p>
                 <a href="{{ url()->current() }}" class="btn btn-outline-dark btn-sm px-4 rounded-pill">Reset Filter</a>
             </div>
         @endif
 
     @else
         
-        {{-- ----- 2. TAMPILAN USER BIASA (NON-AUDITOR) ATAU JIKA MASIH ADA SUBFOLDER ----- --}}
-
+        {{-- ----- TAMPILAN USER BIASA (NON-AUDITOR) ----- --}}
         @if($files->count() > 0)
             <div class="d-flex align-items-center mb-3">
                 <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
@@ -378,12 +372,8 @@
                                     'jpg', 'jpeg', 'png' => 'bi-file-earmark-image-fill text-info',
                                     default => 'bi-file-earmark-text-fill text-secondary'
                                 };
-
-                                $publicUrl = asset('storage/' . $file->file_path);
                             @endphp
-                                
                                 <i class="bi {{ $iconClass }} fs-2 me-3 file-icon"></i>
-                                
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1 fw-bold text-dark text-break">{{ $file->name }}</h6>
                                     <div class="small text-muted">
@@ -396,7 +386,6 @@
                                 <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
                                     <i class="bi bi-download me-1"></i> Unduh
                                 </a>
-
                                 <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
                                         onclick="openDeleteModal('{{ route('smkp.delete_file', $file->id) }}', '{{ $file->name }}', 'Dokumen')">
                                     <i class="bi bi-trash me-1"></i> Hapus
