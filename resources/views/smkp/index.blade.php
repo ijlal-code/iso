@@ -82,7 +82,7 @@
         </div>
 
         <div class="d-flex gap-2">
-            {{-- FITUR 2: Sembunyikan tombol upload jika Auditor --}}
+            {{-- Sembunyikan tombol upload jika Auditor --}}
             @if(Auth::user()->role !== 'Auditor')
             <button class="btn btn-danger shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
                 <i class="bi bi-cloud-upload me-2"></i> Upload File
@@ -158,14 +158,8 @@
     
     @if(Auth::user()->role === 'Auditor' && $currentFolder && $folders->count() == 0)
         
-        <div class="d-flex align-items-center mb-4">
-            <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
-                <i class="bi bi-grid-1x2 me-2"></i> MONITORING DOKUMEN PER UNIT
-            </h6>
-        </div>
-
         @php
-            // DAFTAR UNIT / ROLE SESUAI URUTAN
+            // DEFINISIKAN ARRAY TARGET ROLES DI SINI AGAR BISA DIPAKAI DI DROPDOWN DAN LOOPING
             $targetRoles = [
                 'KTT',
                 'Pengelola Sistem',
@@ -181,37 +175,111 @@
                 'Pengawas Teknik PJO',
                 'Bag. K3 & KO PJO',
             ];
+            $hasData = false;
         @endphp
+
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <h6 class="text-danger fw-bold m-0 border-bottom border-danger border-2 pb-1 pe-3">
+                <i class="bi bi-grid-1x2 me-2"></i> MONITORING DOKUMEN PER UNIT
+            </h6>
+        </div>
+
+        {{-- FITUR BARU: FILTER BAR --}}
+        <div class="card border-0 shadow-sm bg-light mb-4">
+            <div class="card-body p-3">
+                <form action="{{ url()->current() }}" method="GET" class="row g-2 align-items-center">
+                    
+                    {{-- Filter Dropdown Unit (MENGGUNAKAN $targetRoles agar RAPI) --}}
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-funnel"></i></span>
+                            <select name="unit" class="form-select border-start-0 ps-0" onchange="this.form.submit()">
+                                <option value="">- Tampilkan Semua Unit -</option>
+                                @foreach($targetRoles as $roleOption)
+                                    <option value="{{ $roleOption }}" {{ request('unit') == $roleOption ? 'selected' : '' }}>
+                                        {{ $roleOption }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    {{-- Search Input --}}
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" name="q" class="form-control border-start-0 ps-0" 
+                                   placeholder="Cari nama dokumen..." value="{{ request('q') }}">
+                        </div>
+                    </div>
+
+                    {{-- Tombol Reset/Filter --}}
+                    <div class="col-md-2 text-end">
+                        @if(request('unit') || request('q'))
+                            <a href="{{ url()->current() }}" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-x-circle me-1"></i> Reset
+                            </a>
+                        @else
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="bi bi-filter me-1"></i> Filter
+                            </button>
+                        @endif
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <div class="row">
             @foreach($targetRoles as $roleName)
                 @php
-                    // FITUR 1: FILTER FILE BERDASARKAN ROLE USER (AGAR MUNCUL SEMUA FILE)
-                    // Mengambil file yang usernya memiliki role = roleName saat ini
+                    // Filter file berdasarkan role saat ini
                     $roleFiles = $files->filter(function ($file) use ($roleName) {
                         return $file->user && $file->user->role === $roleName;
                     });
+
+                    // LOGIKA TAMPILAN (DIPERBARUI):
+                    
+                    // 1. Jika User memilih Filter Unit tertentu:
+                    //    Tampilkan HANYA unit yang dipilih, meskipun filenya kosong.
+                    //    Skip unit lain.
+                    if (request('unit')) {
+                        if (request('unit') !== $roleName) {
+                            continue; // Skip unit yang tidak dipilih
+                        }
+                        // Jika unit cocok, kita JANGAN continue meskipun count == 0
+                        // agar tabel kosong tetap tampil.
+                    }
+                    
+                    // 2. Jika User HANYA mencari teks (Tanpa Filter Unit):
+                    //    Barulah kita sembunyikan tabel yang kosong agar tidak menuhi layar.
+                    else if (request('q') && $roleFiles->count() === 0) {
+                        continue;
+                    }
+
+                    // Menandakan setidaknya ada 1 tabel yang dirender
+                    $hasData = true;
                 @endphp
 
                 <div class="col-12 mb-4">
                     <div class="card shadow-sm border-0 rounded-2 overflow-hidden">
                         {{-- Header Tabel: Nama Unit --}}
-                        <div class="card-header unit-header py-3 px-4">
+                        <div class="card-header unit-header py-3 px-4 d-flex justify-content-between align-items-center">
                             <h6 class="fw-bold m-0 text-dark">
                                 <i class="bi bi-building me-2 text-secondary"></i> {{ $roleName }}
-                                {{-- Counter badge (Opsional: menghitung jumlah file) --}}
-                                @if($roleFiles->count() > 0)
-                                    <span class="badge bg-danger rounded-pill ms-2">{{ $roleFiles->count() }} File</span>
-                                @endif
                             </h6>
+                            @if($roleFiles->count() > 0)
+                                <span class="badge bg-danger rounded-pill">{{ $roleFiles->count() }} File</span>
+                            @else
+                                <span class="badge bg-secondary rounded-pill">0 File</span>
+                            @endif
                         </div>
 
                         {{-- Body: Tabel File --}}
                         <div class="table-responsive">
-                            <table class="table align-middle mb-0">
-                                <thead class="bg-white border-bottom">
+                            <table class="table align-middle mb-0 table-hover">
+                                <thead class="bg-light border-bottom">
                                     <tr class="small text-muted text-uppercase">
-                                        <th class="ps-4" style="width: 5%;">No</th> {{-- FITUR 1: Kolom Nomor --}}
+                                        <th class="ps-4" style="width: 5%;">No</th>
                                         <th style="width: 25%;">Nama Pengupload</th>
                                         <th style="width: 30%;">Nama Dokumen</th>
                                         <th class="text-center" style="width: 20%;">Tanggal Upload</th>
@@ -233,7 +301,7 @@
                                             };
                                         @endphp
                                         <tr class="bg-white border-bottom">
-                                            <td class="ps-4 fw-bold text-muted">{{ $loop->iteration }}</td> {{-- Nomor Urut --}}
+                                            <td class="ps-4 fw-bold text-muted">{{ $loop->iteration }}</td> 
                                             <td class="fw-medium text-dark">
                                                 {{ $file->user->name ?? 'User Terhapus' }}
                                             </td>
@@ -243,13 +311,11 @@
                                                     <span class="fw-semibold text-dark">{{ $file->name }}</span>
                                                 </div>
                                             </td>
-                                            <td class="text-center text-muted">
+                                            <td class="text-center text-muted small">
                                                 {{ $file->created_at->format('d/m/Y H:i') }}
                                             </td>
                                             <td class="text-center">
                                                 <div class="d-flex justify-content-center gap-1">
-                                                    {{-- FITUR 2: Tombol Lihat DIHILANGKAN untuk Auditor --}}
-                                                    
                                                     <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark" title="Download">
                                                         <i class="bi bi-download"></i>
                                                     </a>
@@ -261,10 +327,10 @@
                                         </tr>
                                     @empty
                                         {{-- JIKA BELUM ADA FILE DARI UNIT INI --}}
-                                        <tr class="bg-light">
+                                        <tr class="bg-white">
                                             <td colspan="5" class="text-center py-4 text-muted fst-italic">
                                                 <i class="bi bi-exclamation-circle me-1"></i>
-                                                Belum ada dokumen yang diupload oleh unit ini.
+                                                Belum ada dokumen.
                                             </td>
                                         </tr>
                                     @endforelse
@@ -276,9 +342,19 @@
             @endforeach
         </div>
 
+        {{-- EMPTY STATE: Jika hasil pencarian Teks (tanpa filter unit) nihil --}}
+        @if(!$hasData)
+            <div class="alert alert-warning text-center border-0 shadow-sm py-5 mt-3">
+                <i class="bi bi-search fs-1 mb-3 d-block text-warning"></i>
+                <h5 class="fw-bold">Data Tidak Ditemukan</h5>
+                <p class="text-muted">Tidak ada dokumen yang sesuai dengan filter atau pencarian Anda.</p>
+                <a href="{{ url()->current() }}" class="btn btn-outline-dark btn-sm px-4 rounded-pill">Reset Filter</a>
+            </div>
+        @endif
+
     @else
         
-        {{-- ----- 2. TAMPILAN USER BIASA (NON-AUDITOR) ----- --}}
+        {{-- ----- 2. TAMPILAN USER BIASA (NON-AUDITOR) ATAU JIKA MASIH ADA SUBFOLDER ----- --}}
 
         @if($files->count() > 0)
             <div class="d-flex align-items-center mb-3">
@@ -304,9 +380,6 @@
                                 };
 
                                 $publicUrl = asset('storage/' . $file->file_path);
-                                $viewerUrl = in_array($ext, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']) 
-                                            ? 'https://docs.google.com/viewer?url=' . urlencode($publicUrl) . '&embedded=false'
-                                            : $publicUrl;
                             @endphp
                                 
                                 <i class="bi {{ $iconClass }} fs-2 me-3 file-icon"></i>
@@ -320,8 +393,6 @@
                             </div>
                             
                             <div class="d-flex gap-2 ms-auto">
-                                
-
                                 <a href="{{ route('smkp.download', $file->id) }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">
                                     <i class="bi bi-download me-1"></i> Unduh
                                 </a>
@@ -332,7 +403,6 @@
                                 </button>
                             </div>
                         </div>
-                        
                     @endforeach
                 </div>
             </div>
