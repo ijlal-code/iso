@@ -74,8 +74,8 @@
             <a class="navbar-brand d-flex align-items-center gap-2" href="{{ route('smkp.index') }}">
                 <i class="bi bi-shield-check text-danger fs-3"></i>
                 <div class="d-flex flex-column lh-1">
-                    <span class="text-white">SMKP <span class="text-danger">MINERBA</span></span>
-                    <span style="font-size: 0.65rem; font-weight: 400; color: #aaa; letter-spacing: 1px;">SISTEM MANAJEMEN KESELAMATAN PERTAMBANGAN</span>
+                    <span class="text-white">ISO Management <span class="text-danger"></span></span>
+                    <span style="font-size: 0.65rem; font-weight: 400; color: #aaa; letter-spacing: 1px;"></span>
                 </div>
             </a>
             
@@ -116,7 +116,7 @@
 
     <footer class="footer text-center">
         <div class="container">
-            <small>&copy; {{ date('Y') }} Sistem SMKP Minerba. All Rights Reserved.</small>
+            <small>&copy; {{ date('Y') }} ISO Management System. All Rights Reserved.</small>
         </div>
     </footer>
 
