@@ -15,19 +15,16 @@ class SmkpController extends Controller
     {
         $user = Auth::user();
         $units = []; 
-        $panduanFolders = collect(); // Inisialisasi koleksi kosong agar tidak error di view
+        $panduanFolders = collect(); 
         $folders = collect();
 
         // --- 1. LOGIKA FOLDER & BREADCRUMBS ---
         if (!$folderId) {
             // === POSISI ROOT (HALAMAN UTAMA) ===
-            
-            // Ambil Folder Utama (Main)
             $folders = Folder::whereNull('parent_id')
-                             ->where('type', 'main') // Default type
+                             ->where('type', 'main')
                              ->get();
 
-            // Ambil Folder Panduan
             $panduanFolders = Folder::whereNull('parent_id')
                                     ->where('type', 'panduan')
                                     ->get();
@@ -35,14 +32,11 @@ class SmkpController extends Controller
             $currentFolder = null;
             $breadcrumbs = [];
             
-            // Query dasar file di root (file tanpa folder)
             $fileQuery = FileUpload::whereNull('folder_id');
 
         } else {
             // === POSISI DI DALAM FOLDER (SUB-FOLDER) ===
             $currentFolder = Folder::with('children')->findOrFail($folderId);
-            
-            // Di dalam sub-folder, kita hanya menampilkan anak-anak folder tersebut
             $folders = $currentFolder->children;
             
             $breadcrumbs = [];
@@ -52,23 +46,18 @@ class SmkpController extends Controller
                 $temp = $temp->parent;
             }
 
-            // Query dasar file di folder ini
             $fileQuery = $currentFolder->files()->getQuery();     
         }
 
         // --- 2. LOGIKA FILTER & PENCARIAN ---
-        
-        // A. Filter Dropdown Unit
         if ($request->has('unit') && $request->unit != '') {
             $fileQuery->whereHas('user', function($q) use ($request) {
                 $q->where('role', $request->unit);
             });
         }
 
-        // B. Pencarian Text Global
         if ($request->has('q') && $request->q != '') {
             $search = $request->q;
-            
             $fileQuery->where(function($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%')
                       ->orWhereHas('user', function($u) use ($search) {
@@ -80,24 +69,25 @@ class SmkpController extends Controller
 
         // --- 3. LOGIKA AKSES ROLE (VISIBILITY) ---
         if ($user->role === 'Auditor') {
-            // AUDITOR: Melihat semua file
+            // AUDITOR: Melihat semua file dari semua role
             $files = $fileQuery->with('user')->latest()->get();
-
         } else {
             // USER BIASA
-            
-            // Cek apakah user sedang berada di dalam Folder Panduan
-            // (Kita cek currentFolder type, atau parentnya jika deep nested, 
-            //  tapi untuk simplifikasi kita cek type folder saat ini)
             $isPanduanArea = $currentFolder && $currentFolder->type === 'panduan';
 
             if ($isPanduanArea) {
                 // Di area PANDUAN: User biasa boleh melihat SEMUA file (Read Only)
                 $files = $fileQuery->with('user')->latest()->get();
             } else {
-                // Di area UTAMA/ROOT: Hanya file milik sendiri
-                $fileQuery->where('user_id', $user->id);
-                $files = $fileQuery->get();
+                // Di area UTAMA/ROOT: 
+                // Hanya melihat file milik sendiri ATAU file yang diunggah oleh Auditor
+                $fileQuery->where(function($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->orWhereHas('user', function($u) {
+                          $u->where('role', 'Auditor');
+                      });
+                });
+                $files = $fileQuery->with('user')->latest()->get();
             }
         }
 
@@ -211,17 +201,20 @@ class SmkpController extends Controller
 
     public function download($id)
     {
-        $file = FileUpload::with('folder')->findOrFail($id);
+        // Load relasi user untuk mengecek role pengunggah
+        $file = FileUpload::with(['folder', 'user'])->findOrFail($id);
         $user = Auth::user();
 
         // Logic Izin Download:
         // 1. Auditor BOLEH.
         // 2. Pemilik File BOLEH.
         // 3. Jika File ada di dalam folder 'panduan', SEMUA USER BOLEH.
+        // 4. Jika File diunggah oleh Auditor, SEMUA USER BOLEH.
         
         $isPanduanFile = $file->folder && $file->folder->type === 'panduan';
+        $isUploadedByAuditor = $file->user && $file->user->role === 'Auditor';
 
-        if ($user->role !== 'Auditor' && $file->user_id !== $user->id && !$isPanduanFile) {
+        if ($user->role !== 'Auditor' && $file->user_id !== $user->id && !$isPanduanFile && !$isUploadedByAuditor) {
             abort(403, 'Anda tidak memiliki izin untuk mengunduh file ini.');
         }
 
