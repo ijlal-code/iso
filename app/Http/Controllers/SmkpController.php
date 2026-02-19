@@ -18,6 +18,9 @@ class SmkpController extends Controller
         $panduanFolders = collect(); 
         $folders = collect();
 
+        // Gunakan Query Builder terpisah agar kondisi where tidak bertabrakan
+        $fileQuery = FileUpload::query();
+
         // --- 1. LOGIKA FOLDER & BREADCRUMBS ---
         if (!$folderId) {
             // === POSISI ROOT (HALAMAN UTAMA) ===
@@ -32,7 +35,8 @@ class SmkpController extends Controller
             $currentFolder = null;
             $breadcrumbs = [];
             
-            $fileQuery = FileUpload::whereNull('folder_id');
+            // File di root
+            $fileQuery->whereNull('folder_id');
 
         } else {
             // === POSISI DI DALAM FOLDER (SUB-FOLDER) ===
@@ -46,7 +50,8 @@ class SmkpController extends Controller
                 $temp = $temp->parent;
             }
 
-            $fileQuery = $currentFolder->files()->getQuery();     
+            // File di sub-folder ini
+            $fileQuery->where('folder_id', $folderId);     
         }
 
         // --- 2. LOGIKA FILTER & PENCARIAN ---
@@ -76,11 +81,11 @@ class SmkpController extends Controller
             $isPanduanArea = $currentFolder && $currentFolder->type === 'panduan';
 
             if ($isPanduanArea) {
-                // Di area PANDUAN: User biasa boleh melihat SEMUA file (Read Only)
+                // Di area PANDUAN: User biasa boleh melihat SEMUA file
                 $files = $fileQuery->with('user')->latest()->get();
             } else {
                 // Di area UTAMA/ROOT: 
-                // Hanya melihat file milik sendiri ATAU file yang diunggah oleh Auditor
+                // Hanya melihat file milik sendiri ATAU file yang diunggah oleh role Auditor
                 $fileQuery->where(function($q) use ($user) {
                     $q->where('user_id', $user->id)
                       ->orWhereHas('user', function($u) {
@@ -101,10 +106,8 @@ class SmkpController extends Controller
             'name' => 'required|string|max:255', 
         ]);
 
-        // CEK HAK AKSES FOLDER PANDUAN
         if ($folderId) {
             $folder = Folder::findOrFail($folderId);
-            // Jika folder ini adalah tipe 'panduan', User biasa DILARANG upload
             if ($folder->type === 'panduan' && Auth::user()->role !== 'Auditor') {
                 abort(403, 'Hanya Auditor yang dapat mengunggah dokumen di folder Panduan.');
             }
@@ -135,18 +138,15 @@ class SmkpController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:50',
-            'type' => 'in:main,panduan', // Validasi input type
+            'type' => 'in:main,panduan', 
         ]);
 
-        // Menentukan Tipe Folder
-        $type = 'main'; // Default
+        $type = 'main'; 
 
         if ($parentId) {
-            // Jika Sub-Folder, tipe mengikuti Parent-nya
             $parent = Folder::findOrFail($parentId);
             $type = $parent->type;
         } else {
-            // Jika Root, tipe diambil dari input form (Main / Panduan)
             $type = $request->input('type', 'main');
         }
 
@@ -154,7 +154,7 @@ class SmkpController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'parent_id' => $parentId,
-            'type' => $type // Simpan tipe folder
+            'type' => $type 
         ]);
 
         return back()->with('success', 'Folder berhasil dibuat.');
@@ -201,16 +201,9 @@ class SmkpController extends Controller
 
     public function download($id)
     {
-        // Load relasi user untuk mengecek role pengunggah
         $file = FileUpload::with(['folder', 'user'])->findOrFail($id);
         $user = Auth::user();
 
-        // Logic Izin Download:
-        // 1. Auditor BOLEH.
-        // 2. Pemilik File BOLEH.
-        // 3. Jika File ada di dalam folder 'panduan', SEMUA USER BOLEH.
-        // 4. Jika File diunggah oleh Auditor, SEMUA USER BOLEH.
-        
         $isPanduanFile = $file->folder && $file->folder->type === 'panduan';
         $isUploadedByAuditor = $file->user && $file->user->role === 'Auditor';
 
@@ -226,8 +219,6 @@ class SmkpController extends Controller
         $file = FileUpload::findOrFail($id);
         $user = Auth::user();
 
-        // Hapus File: Hanya Auditor atau Pemilik File yang boleh
-        // (User biasa tidak bisa hapus file Panduan karena user_id panduan pasti milik Auditor)
         if ($user->role !== 'Auditor' && $file->user_id !== $user->id) {
             abort(403, 'Anda tidak memiliki izin untuk menghapus file ini.');
         }
